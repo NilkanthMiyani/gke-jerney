@@ -1,0 +1,43 @@
+# cert-manager issues Let's Encrypt TLS certificates for NGINX Ingress.
+# Replaces GCP Certificate Manager (a managed service) used by the GKE Gateway.
+# Wave 0: must be ready before ingress resources reference TLS secrets.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://charts.jetstack.io
+    chart: cert-manager
+    targetRevision: "v1.16.5"
+    helm:
+      values: |
+        installCRDs: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  # The cert-manager cainjector populates the webhook caBundle at runtime,
+  # so it always differs from the empty value Helm renders. Ignore it to
+  # avoid a permanent OutOfSync on the ValidatingWebhookConfiguration.
+  ignoreDifferences:
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      jqPathExpressions:
+        - '.webhooks[].clientConfig.caBundle'
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      jqPathExpressions:
+        - '.webhooks[].clientConfig.caBundle'
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

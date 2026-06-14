@@ -1,0 +1,43 @@
+# NGINX Ingress Controller — replaces GKE Gateway API + GCP L7 Load Balancer.
+# On GKE a Service of type LoadBalancer provisions a regional L4 network LB for the
+# NGINX controller (no cloud-specific annotations needed, unlike AKS).
+# Wave 0: must be ready before Ingress resources in platform/ingress are applied.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ingress-nginx
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://kubernetes.github.io/ingress-nginx
+    chart: ingress-nginx
+    targetRevision: "4.11.x"
+    helm:
+      values: |
+        controller:
+          service:
+            type: LoadBalancer
+          admissionWebhooks:
+            enabled: false
+          replicaCount: 1
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ingress-nginx
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

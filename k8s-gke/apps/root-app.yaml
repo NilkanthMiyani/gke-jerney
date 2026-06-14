@@ -1,0 +1,32 @@
+# ==============================================================
+# Root App-of-Apps
+#
+# This single Application tells ArgoCD to watch k8s-gke/apps/
+# Every YAML file in that folder is itself an ArgoCD Application.
+# ArgoCD creates them all, and each one deploys a Helm chart.
+#
+# Deploy order is controlled by argocd.argoproj.io/sync-wave:
+#   Wave 0: ingress-nginx, cert-manager
+#   Wave 1: prometheus-stack, signoz, jerney
+#   Wave 2: ingress-apps (ClusterIssuer + Ingresses), loki-stack
+# ==============================================================
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/NilkanthMiyani/terraform-gke.git
+    targetRevision: main
+    path: k8s-gke/apps
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

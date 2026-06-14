@@ -1,0 +1,19 @@
+# Copy this file to terraform.tfvars and fill in your values.
+# Find your project ID: GCP Console → click project dropdown → copy Project ID
+
+project_id = "your-gcp-project-id"
+
+region = "us-central1"
+zone   = "us-central1-a"
+
+cluster_name      = "jerney-gke"
+environment       = "dev"
+node_machine_type = "e2-medium"
+min_node_count    = 2
+max_node_count    = 5
+disk_size_gb      = 30
+
+# Application secrets — seeded into GCP Secret Manager by Terraform.
+postgres_password      = "change-me-strong-postgres-password"
+grafana_admin_password = "change-me-grafana-admin-password"
+alertmanager_smtp_key  = "re_your_resend_api_key"

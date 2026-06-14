@@ -1,0 +1,92 @@
+# ==============================================================
+# Platform NGINX Ingresses — one per platform service.
+# Replaces the GKE Gateway HTTPRoutes (argocd/grafana/signoz routes).
+# TLS: cert-manager issues a Let's Encrypt cert per host automatically.
+# HTTP→HTTPS redirect handled by the nginx ssl-redirect annotations.
+# ==============================================================
+
+# ---- ArgoCD ----
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-ingress
+  namespace: argocd
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - argocd.nilkanthprojects.site
+      secretName: argocd-tls
+  rules:
+    - host: argocd.nilkanthprojects.site
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: argo-cd-argocd-server
+                port:
+                  number: 80
+
+---
+# ---- Grafana ----
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana-ingress
+  namespace: monitoring
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - grafana.nilkanthprojects.site
+      secretName: grafana-tls
+  rules:
+    - host: grafana.nilkanthprojects.site
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: prometheus-stack-grafana
+                port:
+                  number: 80
+
+---
+# ---- SigNoz ----
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: signoz-ingress
+  namespace: platform
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - signoz.nilkanthprojects.site
+      secretName: signoz-tls
+  rules:
+    - host: signoz.nilkanthprojects.site
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: signoz
+                port:
+                  number: 8080

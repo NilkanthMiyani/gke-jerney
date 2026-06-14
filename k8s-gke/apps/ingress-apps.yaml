@@ -1,0 +1,33 @@
+# Applies ClusterIssuer + Ingress resources from k8s-gke/platform/ingress/
+# Wave 2: after cert-manager (wave 0) and ingress-nginx (wave 0) are fully ready.
+# Replaces the GKE gateway app (Gateway API + HTTPRoutes).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ingress-apps
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/NilkanthMiyani/terraform-gke.git
+    targetRevision: main
+    path: k8s-gke/platform/ingress
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 10
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 5m

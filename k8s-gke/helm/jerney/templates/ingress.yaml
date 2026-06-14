@@ -1,0 +1,45 @@
+# ==============================================================
+# Jerney NGINX Ingress
+#
+# Replaces the GKE Gateway HTTPRoute (jerney-route in gateway/httproutes.yaml).
+# Path-based routing: /api → backend:5000, / → frontend:80
+# TLS: cert-manager issues a Let's Encrypt certificate automatically.
+# HTTP→HTTPS redirect: handled by the nginx ssl-redirect annotations
+#   (replaces the GKE http-redirect.yaml RequestRedirect filter).
+# ==============================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Chart.Name }}-ingress
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/part-of: {{ .Chart.Name }}
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - {{ .Values.ingress.host }}
+      secretName: {{ .Chart.Name }}-tls
+  rules:
+    - host: {{ .Values.ingress.host }}
+      http:
+        paths:
+          - path: /api(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: {{ .Chart.Name }}-backend
+                port:
+                  number: {{ .Values.service.backend.port }}
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Chart.Name }}-frontend
+                port:
+                  number: {{ .Values.service.frontend.port }}

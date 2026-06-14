@@ -1,0 +1,63 @@
+# ==============================================================
+# Jerney Helm Values — GKE
+#
+# Self-contained values for the GKE cluster.
+# Differences from k8s/helm/jerney/values.yaml (EC2/kubeadm):
+#   - postgresql.primary.persistence.storageClass: standard-rwo
+#     (GKE Persistent Disk vs local-path on kubeadm)
+# ==============================================================
+
+# replicaCount managed by HPA below
+hpa:
+  frontend:
+    minReplicas: 1
+    maxReplicas: 10
+    targetCPU: 50
+  backend:
+    minReplicas: 1
+    maxReplicas: 10
+    targetCPU: 50
+image:
+  backend:
+    repository: docker.io/nmiyani/jerney-backend
+    tag: 8175f40
+  frontend:
+    repository: docker.io/nmiyani/jerney-frontend
+    tag: 8175f40
+postgresql:
+  enabled: true
+  image:
+    tag: "latest"  # bitnami removed version tags from Docker Hub; only latest is publicly available
+  auth:
+    username: jerney_user
+    database: jerney_db
+    existingSecret: jerney-db-credentials  # managed by ESO → GCP Secret Manager
+    secretKeys:
+      adminPasswordKey: password
+      userPasswordKey: password
+  primary:
+    persistence:
+      size: 10Gi
+      # GKE standard-rwo = Persistent Disk (ReadWriteOnce).
+      storageClass: "standard-rwo"
+otel:
+  endpoint: http://signoz-otel-collector.platform.svc.cluster.local:4317
+ingress:
+  # Hostname for the nginx Ingress; cert-manager issues a Let's Encrypt cert for it.
+  host: jerney.nilkanthprojects.site
+service:
+  frontend:
+    type: ClusterIP
+    port: 80
+    targetPort: 8080
+    annotations: {}
+  backend:
+    type: ClusterIP
+    port: 5000
+    targetPort: 5000
+    annotations: {}
+  db:
+    type: ClusterIP
+    port: 5432
+    targetPort: 5432
+
