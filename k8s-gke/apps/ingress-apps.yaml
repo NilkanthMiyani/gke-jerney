@@ -13,7 +13,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/NilkanthMiyani/terraform-gke.git
+    repoURL: https://github.com/NilkanthMiyani/gke-jerney.git
     targetRevision: main
     path: k8s-gke/platform/ingress
   destination:
