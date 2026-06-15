@@ -1,5 +1,4 @@
 # cert-manager issues Let's Encrypt TLS certificates for NGINX Ingress.
-# Replaces GCP Certificate Manager (a managed service) used by the GKE Gateway.
 # Wave 0: must be ready before ingress resources reference TLS secrets.
 apiVersion: argoproj.io/v1alpha1
 kind: Application

@@ -1,6 +1,5 @@
 # Applies ClusterIssuer + Ingress resources from k8s-gke/platform/ingress/
 # Wave 2: after cert-manager (wave 0) and ingress-nginx (wave 0) are fully ready.
-# Replaces the GKE gateway app (Gateway API + HTTPRoutes).
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

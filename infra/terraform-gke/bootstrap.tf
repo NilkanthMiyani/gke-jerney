@@ -7,12 +7,14 @@
 #                               (kubectl provider instead of kubernetes_manifest
 #                                because ArgoCD CRDs don't exist at plan time)
 #
-# Everything else (Gateway API configs, prometheus, signoz,
-# loki, etc.) is deployed by ArgoCD from k8s-gke/apps/ in Git.
+# Everything else (ingress-nginx, cert-manager, external-secrets,
+# prometheus, signoz, loki, jerney, etc.) is deployed by ArgoCD
+# from k8s-gke/apps/ in Git.
 #
 # GitOps deploy order after terraform apply:
-#   ArgoCD wave 1: prometheus-stack, signoz, jerney
-#   ArgoCD wave 2: gateway, loki-stack
+#   ArgoCD wave 0: ingress-nginx, cert-manager, external-secrets
+#   ArgoCD wave 1: platform-secrets, prometheus-stack, signoz, jerney
+#   ArgoCD wave 2: loki-stack, ingress-apps
 # ==============================================================
 
 # ---- GCP auth token for helm + kubernetes providers ----
@@ -44,14 +46,14 @@ resource "helm_release" "argocd" {
   name             = "argo-cd"
   repository       = "https://argoproj.github.io/argo-helm"
   chart            = "argo-cd"
-  version          = "9.5.20" # ArgoCD v3.4.3 — K8s 1.35-aware schemas fix StatefulSet SSA diff errors
+  version          = "9.5.20"
   namespace        = "argocd"
   create_namespace = true
   wait             = true # blocks until all ArgoCD pods are Running
   timeout          = 300
 
   set {
-    # Runs ArgoCD server without TLS — GKE LB handles TLS termination
+    # Runs ArgoCD server without TLS — the nginx Ingress + cert-manager terminate TLS
     name  = "configs.params.server\\.insecure"
     value = "true"
   }

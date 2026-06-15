@@ -1,11 +1,5 @@
 # ==============================================================
-# Bootstrap — creates the GCS bucket used as the Terraform
-# remote backend for infra/terraform-gke.
-#
-# Uses local state intentionally — this module is the
-# prerequisite that makes remote state possible.
-# Run once before working in terraform-gke:
-#   terraform init && terraform apply
+# Bootstrap — creates the GCS bucket used as the Terraform remote state backend
 # ==============================================================
 
 terraform {

@@ -5,7 +5,6 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      # app.kubernetes.io/name: {{ .Chart.Name }}-db
       app.kubernetes.io/name: postgresql
       app.kubernetes.io/instance: {{ .Release.Name }}
   policyTypes:

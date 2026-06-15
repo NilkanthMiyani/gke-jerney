@@ -1,5 +1,4 @@
 # NGINX Ingress Controller — replaces GKE Gateway API + GCP L7 Load Balancer.
-# On GKE a Service of type LoadBalancer provisions a regional L4 network LB for the
 # NGINX controller (no cloud-specific annotations needed, unlike AKS).
 # Wave 0: must be ready before Ingress resources in platform/ingress are applied.
 apiVersion: argoproj.io/v1alpha1

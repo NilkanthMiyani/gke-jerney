@@ -1,6 +1,5 @@
 # ==============================================================
 # Jerney - GKE versions.tf
-# Standard file: terraform block + provider block live here
 # ==============================================================
 
 terraform {

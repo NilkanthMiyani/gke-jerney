@@ -3,12 +3,12 @@
 #
 # This single Application tells ArgoCD to watch k8s-gke/apps/
 # Every YAML file in that folder is itself an ArgoCD Application.
-# ArgoCD creates them all, and each one deploys a Helm chart.
+# ArgoCD creates them all, and each one deploys a Helm chart or raw manifests.
 #
 # Deploy order is controlled by argocd.argoproj.io/sync-wave:
-#   Wave 0: ingress-nginx, cert-manager
-#   Wave 1: prometheus-stack, signoz, jerney
-#   Wave 2: ingress-apps (ClusterIssuer + Ingresses), loki-stack
+#   Wave 0: ingress-nginx, cert-manager, external-secrets
+#   Wave 1: platform-secrets, prometheus-stack, signoz, jerney
+#   Wave 2: loki-stack, ingress-apps (ClusterIssuer + Ingresses)
 # ==============================================================
 apiVersion: argoproj.io/v1alpha1
 kind: Application

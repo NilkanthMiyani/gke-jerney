@@ -1,7 +1,6 @@
 # ==============================================================
 # cert-manager ClusterIssuer — Let's Encrypt (production)
 #
-# Replaces GCP Certificate Manager used by the GKE Gateway.
 # Uses HTTP01 challenge via NGINX Ingress — cert-manager creates
 # a temporary Ingress for the ACME validation path.
 # ==============================================================

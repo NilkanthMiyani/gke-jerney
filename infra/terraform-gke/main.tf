@@ -1,12 +1,5 @@
 # ==============================================================
 # Jerney - GKE Standard Cluster (Free-Tier Optimized)
-#
-# Cost strategy:
-#   - Single-zone cluster (not regional) → avoids 3x node cost
-#   - Spot VMs on node pool → ~70% cheaper than on-demand
-#   - e2-medium nodes → cheapest machine type viable for this stack
-#   - 1 node minimum → scales to zero compute when idle
-#   - pd-standard disk → cheapest disk type
 # ==============================================================
 
 # ---- Enable required GCP APIs ----
@@ -22,7 +15,6 @@ resource "google_project_service" "compute" {
 }
 
 # ---- VPC Network ----
-# Custom VPC (not default) — required for GKE best practices
 resource "google_compute_network" "jerney_vpc" {
   name                    = "${var.cluster_name}-vpc"
   auto_create_subnetworks = false
@@ -31,7 +23,6 @@ resource "google_compute_network" "jerney_vpc" {
 }
 
 # ---- Subnet ----
-# Secondary ranges are required by GKE VPC-native clusters.
 # VPC-native = pods get real VPC IPs (better performance + network policy support)
 resource "google_compute_subnetwork" "jerney_nodes" {
   name          = "${var.cluster_name}-subnet"
@@ -130,10 +121,10 @@ resource "google_container_cluster" "jerney" {
 
   addons_config {
     http_load_balancing {
-      disabled = false # GCP L7 LB addon; harmless for nginx (which uses an L4 LB)
+      disabled = true # nginx-only cluster — disable GCE L7 ingress so a classless Ingress can't spin up a billable GCP LB
     }
     horizontal_pod_autoscaling {
-      disabled = false # matches HPA config in k8s/helm/jerney/values.yaml
+      disabled = false # matches HPA config in k8s-gke/helm/jerney/values.yaml
     }
   }
 

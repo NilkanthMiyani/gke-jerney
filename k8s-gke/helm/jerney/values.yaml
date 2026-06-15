@@ -1,13 +1,7 @@
 # ==============================================================
 # Jerney Helm Values — GKE
-#
-# Self-contained values for the GKE cluster.
-# Differences from k8s/helm/jerney/values.yaml (EC2/kubeadm):
-#   - postgresql.primary.persistence.storageClass: standard-rwo
-#     (GKE Persistent Disk vs local-path on kubeadm)
 # ==============================================================
 
-# replicaCount managed by HPA below
 hpa:
   frontend:
     minReplicas: 1

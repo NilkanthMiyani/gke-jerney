@@ -1,11 +1,9 @@
 # ==============================================================
 # Jerney NGINX Ingress
 #
-# Replaces the GKE Gateway HTTPRoute (jerney-route in gateway/httproutes.yaml).
 # Path-based routing: /api → backend:5000, / → frontend:80
 # TLS: cert-manager issues a Let's Encrypt certificate automatically.
 # HTTP→HTTPS redirect: handled by the nginx ssl-redirect annotations
-#   (replaces the GKE http-redirect.yaml RequestRedirect filter).
 # ==============================================================
 apiVersion: networking.k8s.io/v1
 kind: Ingress
