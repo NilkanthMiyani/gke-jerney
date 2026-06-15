@@ -153,4 +153,4 @@ which ArgoCD detects and reconciles automatically.
 
 Designed to run cheaply on the GCP free trial: single-zone cluster, **Spot**
 `e2-medium` nodes (autoscale 1–5), `pd-standard` disks. Roughly **$15–25/month**
-plus the GKE management fee (~$72/month, covered by the $300 trial credit).
+plus the GKE management fee (~$72/month).
