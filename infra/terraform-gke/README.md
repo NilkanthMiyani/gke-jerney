@@ -105,8 +105,9 @@ Internet
    wave 0: cert-manager      -- installs cert-manager + CRDs
    wave 1: platform-secrets  -- ClusterSecretStore + ExternalSecrets
                                 K8s Secrets appear in jerney + monitoring
-   wave 1: prometheus-stack, jerney, loki-stack
+   wave 1: prometheus-stack, jerney, signoz
                              -- apps read secrets via existingSecret refs
+   wave 2: loki-stack        -- Loki + Promtail (log aggregation)
    wave 2: ingress-apps      -- letsencrypt-prod ClusterIssuer + Ingresses
                                 (cert-manager issues Let's Encrypt certs)
 
