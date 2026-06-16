@@ -1,6 +1,8 @@
 # Jerney — GKE Infrastructure (Terraform)
 
-This directory provisions a **GKE Standard cluster** on Google Cloud Platform to run the Jerney 3-tier blog application.
+This directory provisions a **GKE Standard cluster** on Google Cloud Platform to run the Jerney 3-tier blog application, using a **modular Terraform layout** (`modules/` + per-environment `environments/`) that mirrors the `jerney-aks` / `jerney-eks` siblings.
+
+Resource names below use the per-environment `<cluster>` prefix — `jerney-gke-dev`, `jerney-gke-staging`, or `jerney-gke-prod` — so the three environments can coexist in one project.
 
 ---
 
@@ -8,17 +10,19 @@ This directory provisions a **GKE Standard cluster** on Google Cloud Platform to
 
 | Resource | Type | Purpose |
 |---|---|---|
-| `jerney-gke-vpc` | VPC Network | Isolated network for the cluster |
-| `jerney-gke-subnet` | Subnetwork | Node subnet + secondary ranges for pods/services |
-| `jerney-gke-allow-web` | Firewall Rule | Opens 80/443 to the internet |
-| `jerney-gke-allow-health-checks` | Firewall Rule | GCP LB health check ranges (35.191.0.0/16, 130.211.0.0/22) |
-| `jerney-gke-nodes` SA | Service Account | Least-privilege identity for node VMs |
-| `jerney-gke` | GKE Standard Cluster | Single-zone managed Kubernetes |
-| `jerney-gke-nodes` | Node Pool | Spot e2-medium nodes, autoscales 1–5 |
-| `jerney-eso` SA | Service Account | External Secrets Operator — reads GCP Secret Manager |
-| `jerney-postgres-password` | Secret Manager Secret | PostgreSQL password (value seeded via gcloud) |
-| `jerney-grafana-admin-password` | Secret Manager Secret | Grafana admin password (value seeded via gcloud) |
-| `jerney-alertmanager-smtp-key` | Secret Manager Secret | Alertmanager SMTP key (value seeded via gcloud) |
+| `<cluster>-vpc` | VPC Network | Isolated network for the cluster |
+| `<cluster>-subnet` | Subnetwork | Node subnet + secondary ranges for pods/services |
+| `<cluster>-allow-web` | Firewall Rule | Opens 80/443 to the internet |
+| `<cluster>-allow-health-checks` | Firewall Rule | GCP LB health check ranges (35.191.0.0/16, 130.211.0.0/22) |
+| `<cluster>-nodes` SA | Service Account | Least-privilege identity for node VMs |
+| `<cluster>` | GKE Standard Cluster | Single-zone managed Kubernetes (version pinned via `kubernetes_version`, default `1.35`) |
+| `<cluster>-nodes` | Node Pool | Autoscaling node pool — sizing/machine type/Spot per environment (see Cost Strategy) |
+| `<cluster>-eso` SA | Service Account | External Secrets Operator — reads GCP Secret Manager (Workload Identity) |
+| `jerney-postgres-password` | Secret Manager Secret | PostgreSQL password (seeded by Terraform from tfvars) |
+| `jerney-grafana-admin-password` | Secret Manager Secret | Grafana admin password (seeded by Terraform from tfvars) |
+| `jerney-alertmanager-smtp-key` | Secret Manager Secret | Alertmanager SMTP key (seeded by Terraform from tfvars) |
+
+> ArgoCD, the External Secrets Operator, and the `gcp-secret-manager` ClusterSecretStore are also created in-cluster by the `argocd-bootstrap` module.
 
 ### IP Ranges
 
@@ -32,13 +36,23 @@ This directory provisions a **GKE Standard cluster** on Google Cloud Platform to
 
 ## Cost Strategy (Free Tier)
 
-This config is designed to stay as cheap as possible while still running the full stack:
+The **dev** environment is tuned to stay as cheap as possible while still running the full stack:
 
 - **Single-zone cluster** (`us-central1-a`) — regional clusters run 3 control planes, ~3x the cost
-- **Spot VMs** on node pool — ~70% cheaper than on-demand; GCP can reclaim with 30s notice (acceptable for dev)
-- **e2-medium** (2 vCPU, 4 GB) — minimum practical size for running the full observability stack
-- **1 node minimum** — scales to zero when idle; GKE auto-repairs if spot is preempted
+- **Spot VMs** on the node pool (`use_spot = true`) — ~70% cheaper than on-demand; GCP can reclaim with 30s notice (acceptable for dev)
+- **e2-medium** (2 vCPU, 4 GB), **autoscale 1–3** — minimum practical size for the full observability stack
 - **pd-standard disk** — cheapest disk type, vs pd-ssd
+
+Per-environment defaults (all overridable in `terraform.tfvars`):
+
+| Setting | dev | staging | prod |
+|---|---|---|---|
+| `kubernetes_version` | 1.35 | 1.35 | 1.35 |
+| `node_machine_type` | e2-medium | e2-medium | e2-standard-2 |
+| `min_node_count` / `max_node_count` | 1 / 3 | 1 / 4 | 2 / 5 |
+| `disk_size_gb` | 30 | 30 | 50 |
+| `use_spot` | true | false | false |
+| `deletion_protection` | false | false | true |
 
 > **Note:** GKE Standard has a cluster management fee of ~$0.10/hr (~$72/month). GCP's $300 free trial credit covers this for several months. If you want zero management fee, GKE Autopilot charges per pod instead.
 
@@ -53,11 +67,11 @@ Internet
 +-----------------------------------------------------+
 |  GCP (us-central1-a)                                |
 |                                                     |
-|  +--------------- jerney-gke-vpc ----------------+  |
+|  +--------------- <cluster>-vpc -----------------+  |
 |  |                                               |  |
-|  |  GKE Standard Cluster: jerney-gke             |  |
+|  |  GKE Standard Cluster: <cluster> (K8s 1.35)   |  |
 |  |  +-------------------------------------------+   |
-|  |  |  Node Pool (Spot e2-medium, 1-5)          |   |
+|  |  |  Node Pool (autoscaling, per-env sizing)  |   |
 |  |  |                                           |   |
 |  |  |  Namespace: ingress-nginx                 |   |
 |  |  |    nginx controller (L4 LB) :80 :443      |   |
@@ -266,7 +280,7 @@ kubectl get certificate -A   # each should reach READY=True
 | | terraform-ec2 | terraform-gke |
 |---|---|---|
 | Kubernetes | kubeadm (self-managed) | GKE Standard (managed control plane) |
-| Nodes | Single EC2 t3.large | Spot e2-medium, autoscales 1-5 |
+| Nodes | Single EC2 t3.large | Autoscaling node pool (dev: Spot e2-medium 1–3; prod: e2-standard-2 2–5) |
 | Control plane | Your responsibility | Google's responsibility |
 | Cluster upgrades | Manual kubeadm upgrade | GKE auto-upgrade |
 | Setup time | ~20 min (userdata.sh) | ~10 min (terraform apply) |

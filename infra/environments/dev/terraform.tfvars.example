@@ -14,13 +14,14 @@ zone        = "us-central1-a"
 environment = "dev"
 
 # ---- Cluster ----
-cluster_name = "jerney-gke-dev"
+cluster_name       = "jerney-gke-dev"
+kubernetes_version = "1.35"      # partial = latest patch; null/omit = GKE default
+node_machine_type  = "e2-medium" # 2 vCPU / 4 GB — minimum practical for the full stack
+min_node_count     = 1           # scales down to 1 when idle
+max_node_count     = 3
+disk_size_gb       = 30
 
-# Node pool (optional — dev defaults shown)
-# node_machine_type   = "e2-medium"   # 2 vCPU / 4 GB — minimum practical for the full stack
-# min_node_count      = 1             # scales down to 1 when idle
-# max_node_count      = 3
-# disk_size_gb        = 30
+# Optional (dev defaults shown)
 # use_spot            = true          # ~70% cheaper, reclaimable — fine for dev
 # deletion_protection = false         # allow `terraform destroy`
 

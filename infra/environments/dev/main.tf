@@ -89,6 +89,7 @@ module "gke_cluster" {
   services_range_name = module.networking.services_range_name
   node_network_tag    = local.node_network_tag
 
+  kubernetes_version         = var.kubernetes_version
   node_machine_type          = var.node_machine_type
   min_node_count             = var.min_node_count
   max_node_count             = var.max_node_count

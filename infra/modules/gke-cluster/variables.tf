@@ -16,6 +16,12 @@ variable "project_id" {
   nullable    = false
 }
 
+variable "kubernetes_version" {
+  description = "GKE master version — accepts a partial version like \"1.31\" (latest patch). null = GKE default."
+  type        = string
+  default     = null
+}
+
 # ---- Networking (from the networking module) ----
 variable "network_id" {
   description = "VPC network ID"

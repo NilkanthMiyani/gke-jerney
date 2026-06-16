@@ -43,6 +43,12 @@ variable "cluster_name" {
   nullable    = false
 }
 
+variable "kubernetes_version" {
+  description = "GKE Kubernetes version (partial like \"1.31\" = latest patch; null = GKE default)"
+  type        = string
+  default     = null
+}
+
 variable "node_machine_type" {
   description = "GCE machine type for nodes"
   type        = string

@@ -14,13 +14,14 @@ zone        = "us-central1-a"
 environment = "prod"
 
 # ---- Cluster ----
-cluster_name = "jerney-gke-prod"
+cluster_name       = "jerney-gke-prod"
+kubernetes_version = "1.35"          # partial = latest patch; null/omit = GKE default
+node_machine_type  = "e2-standard-2" # 2 vCPU / 8 GB
+min_node_count     = 2               # headroom for rolling updates
+max_node_count     = 5
+disk_size_gb       = 50
 
-# Node pool (optional — prod defaults shown)
-# node_machine_type   = "e2-standard-2"  # 2 vCPU / 8 GB
-# min_node_count      = 2                 # headroom for rolling updates
-# max_node_count      = 5
-# disk_size_gb        = 50
+# Optional (prod defaults shown)
 # use_spot            = false             # on-demand for stability
 # deletion_protection = true             # blocks `terraform destroy` of the cluster
 

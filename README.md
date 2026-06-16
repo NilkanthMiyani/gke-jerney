@@ -158,6 +158,8 @@ which ArgoCD detects and reconciles automatically.
 
 ## Cost
 
-Designed to run cheaply on the GCP free trial: single-zone cluster, **Spot**
-`e2-medium` nodes (autoscale 1–5), `pd-standard` disks. Roughly **$15–25/month**
-plus the GKE management fee (~$72/month).
+The **dev** environment runs cheaply on the GCP free trial: single-zone cluster,
+**Spot** `e2-medium` nodes (autoscale 1–3), `pd-standard` disks — roughly **$15–25/month**
+plus the GKE management fee (~$72/month). `staging` and `prod` trade cost for stability
+(on-demand nodes; prod uses `e2-standard-2`, min 2). All node/version settings —
+including `kubernetes_version` (default **1.35**) — are per-environment in `terraform.tfvars`.

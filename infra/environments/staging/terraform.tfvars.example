@@ -14,13 +14,14 @@ zone        = "us-central1-a"
 environment = "staging"
 
 # ---- Cluster ----
-cluster_name = "jerney-gke-staging"
+cluster_name       = "jerney-gke-staging"
+kubernetes_version = "1.35"      # partial = latest patch; null/omit = GKE default
+node_machine_type  = "e2-medium"
+min_node_count     = 1
+max_node_count     = 4
+disk_size_gb       = 30
 
-# Node pool (optional — staging defaults shown)
-# node_machine_type   = "e2-medium"
-# min_node_count      = 1
-# max_node_count      = 4
-# disk_size_gb        = 30
+# Optional (staging defaults shown)
 # use_spot            = false         # on-demand — steadier than dev
 # deletion_protection = false
 

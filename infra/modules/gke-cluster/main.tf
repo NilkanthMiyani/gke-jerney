@@ -8,6 +8,10 @@ resource "google_container_cluster" "this" {
   name     = var.cluster_name
   location = var.zone # single zone → ~3x cheaper than regional (3 control planes)
 
+  # Master version — null lets GKE pick its default for the channel.
+  # Node pools follow the master version unless pinned separately.
+  min_master_version = var.kubernetes_version
+
   # Best practice: create an empty cluster and manage the node pool separately,
   # so the pool can be replaced without recreating the cluster.
   remove_default_node_pool = true
