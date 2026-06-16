@@ -1,5 +1,5 @@
 # ==============================================================
-# Jerney - GKE versions.tf
+# Staging Environment — Provider & Backend Configuration
 # ==============================================================
 
 terraform {
@@ -21,8 +21,8 @@ terraform {
   }
 
   backend "gcs" {
-    bucket = "jerney-tfstate"
-    prefix = "jerney-gke/state"
+    bucket = "jerney-tfstate" # from infra/bootstrap output
+    prefix = "jerney-gke/staging/state"
   }
 }
 

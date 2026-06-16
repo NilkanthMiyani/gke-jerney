@@ -40,24 +40,27 @@ TLS issued by cert-manager.
 ├── docs/
 │   └── architecture.svg          # this diagram
 │
-├── infra/
-│   ├── bootstrap/                # run first — creates the GCS bucket for TF remote state
-│   │   └── main.tf               # google_storage_bucket (local state, intentional)
-│   └── terraform-gke/            # main cluster config (run after bootstrap)
-│       ├── main.tf               # VPC, subnet, firewall, GKE cluster + node pool,
-│       │                         # ESO service account + Workload Identity, Secret Manager
-│       ├── bootstrap.tf          # ArgoCD Helm release + root app-of-apps
-│       ├── versions.tf           # backend "gcs", required_providers (google, helm, kubectl)
-│       ├── variables.tf · outputs.tf · terraform.tfvars(.example)
-│       └── README.md             # detailed Terraform/runbook docs
+├── infra/                       # modular Terraform (mirrors jerney-aks / jerney-eks)
+│   ├── bootstrap/               # run first — creates the GCS bucket for TF remote state
+│   │   └── main.tf              # google_storage_bucket (local state, intentional)
+│   ├── modules/                 # reusable, cloud-specific building blocks
+│   │   ├── networking/          # VPC, VPC-native subnet, firewall rules
+│   │   ├── gke-cluster/         # GKE Standard cluster + node pool
+│   │   ├── iam/                 # node SA + ESO SA + Workload Identity binding
+│   │   ├── secret-manager/      # GCP Secret Manager secrets (map-driven)
+│   │   └── argocd-bootstrap/    # ArgoCD + ESO + ClusterSecretStore + root app
+│   ├── environments/            # one composition + state file per environment
+│   │   ├── dev/                 # main.tf · variables.tf · outputs.tf · versions.tf · tfvars.example
+│   │   ├── staging/
+│   │   └── prod/
+│   └── README.md                # detailed Terraform / runbook docs
 │
 └── k8s-gke/
     ├── apps/                     # ArgoCD Applications (watched by root-app.yaml)
-    │   ├── root-app.yaml         #          App-of-Apps (bootstrapped by Terraform)
+    │   ├── root-app.yaml         #          App-of-Apps (created by Terraform bootstrap)
     │   ├── ingress-nginx.yaml    # wave 0 — NGINX ingress controller
     │   ├── cert-manager.yaml     # wave 0 — cert-manager + CRDs
-    │   ├── external-secrets.yaml # wave 0 — External Secrets Operator
-    │   ├── platform-secrets.yaml # wave 1 — ClusterSecretStore + ExternalSecrets
+    │   ├── platform-secrets.yaml # wave 1 — ExternalSecrets (store comes from Terraform)
     │   ├── prometheus-stack.yaml # wave 1 — kube-prometheus-stack
     │   ├── jerney.yaml           # wave 1 — app Helm chart
     │   ├── signoz.yaml           # wave 1 — SigNoz tracing
@@ -69,11 +72,15 @@ TLS issued by cert-manager.
     │   └── templates/            # deployments, services, ingress, hpa, network-policies
     │
     └── platform/
-        ├── external-secrets/     # ClusterSecretStore → GCP SM + 3 ExternalSecrets
+        ├── external-secrets/     # ExternalSecrets (DB / Grafana / SMTP) — store created by TF
         ├── prometheus-stack/     # Grafana / Alertmanager / Prometheus values
         ├── loki-stack/           # Loki values
         └── ingress/              # letsencrypt-prod ClusterIssuer + per-host Ingresses
 ```
+
+> **ESO + the ClusterSecretStore are installed by Terraform** (the `argocd-bootstrap`
+> module), exactly like the `jerney-aks` / `jerney-eks` siblings — so they exist before
+> any ArgoCD app that consumes secrets. Only the `ExternalSecret` resources stay in GitOps.
 
 ---
 
@@ -83,8 +90,8 @@ ArgoCD applies components in ordered waves so dependencies are ready before cons
 
 | Wave | Apps | Why |
 |---|---|---|
-| **0** | `ingress-nginx`, `cert-manager`, `external-secrets` | Controllers/CRDs needed by everything else |
-| **1** | `platform-secrets`, `prometheus-stack`, `jerney`, `signoz` | Secrets materialize, then apps consume them via `existingSecret` refs |
+| **0** | `ingress-nginx`, `cert-manager` | Controllers/CRDs needed by everything else (ArgoCD + ESO come from Terraform) |
+| **1** | `platform-secrets`, `prometheus-stack`, `jerney`, `signoz` | ExternalSecrets materialize, then apps consume them via `existingSecret` refs |
 | **2** | `loki-stack`, `ingress-apps` | ClusterIssuer + Ingresses (cert-manager issues certs once DNS resolves) |
 
 ---
@@ -93,7 +100,7 @@ ArgoCD applies components in ordered waves so dependencies are ready before cons
 
 Three secrets live in **GCP Secret Manager** (seeded by Terraform from `terraform.tfvars`)
 and are synced into Kubernetes by ESO, which authenticates to GCP via **Workload Identity**
-(the `jerney-eso` GCP service account, no static keys):
+(a dedicated per-cluster ESO GCP service account, e.g. `jerney-gke-dev-eso`, no static keys):
 
 | GCP Secret | K8s Secret (namespace) | Consumed by |
 |---|---|---|
@@ -126,8 +133,8 @@ gcloud auth application-default login
 # 2. Create the remote-state bucket (one-time)
 cd infra/bootstrap && terraform init && terraform apply
 
-# 3. Provision cluster + bootstrap ArgoCD
-cd ../terraform-gke
+# 3. Provision a cluster + bootstrap ArgoCD (pick an environment)
+cd ../environments/dev                         # or staging / prod
 cp terraform.tfvars.example terraform.tfvars   # set project_id + the 3 secret values
 terraform init && terraform apply              # ~10 min
 
@@ -145,7 +152,7 @@ images are rolled out by bumping the tags in `k8s-gke/helm/jerney/values.yaml`,
 which ArgoCD detects and reconciles automatically.
 
 > **Full runbook, cost strategy, IP ranges, and teardown:**
-> see [infra/terraform-gke/README.md](infra/terraform-gke/README.md).
+> see [infra/README.md](infra/README.md).
 
 ---
 

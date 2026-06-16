@@ -1,0 +1,23 @@
+# ==============================================================
+# Example Terraform Variables — Prod Environment
+# ==============================================================
+# Copy to `terraform.tfvars` and fill in your values.
+# Do NOT commit the real terraform.tfvars (it holds secrets).
+
+# ---- GCP Context ----
+project_id = "YOUR_GCP_PROJECT_ID"
+region     = "us-central1"
+zone       = "us-central1-a"
+
+# ---- Cluster ----
+cluster_name = "jerney-gke-prod"
+
+# ---- GitOps ----
+gitops_repo_url        = "https://github.com/NilkanthMiyani/gke-jerney.git"
+gitops_target_revision = "main"
+gitops_apps_path       = "k8s-gke/apps"
+
+# ---- Secrets (seeded into GCP Secret Manager) ----
+postgres_password      = "replace-with-prod-postgres-password"
+grafana_admin_password = "replace-with-prod-grafana-password"
+alertmanager_smtp_key  = "re_replace_with_resend_api_key"

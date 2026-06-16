@@ -5,8 +5,11 @@
 # Every YAML file in that folder is itself an ArgoCD Application.
 # ArgoCD creates them all, and each one deploys a Helm chart or raw manifests.
 #
+# ArgoCD itself, External Secrets Operator, and the ClusterSecretStore are
+# installed by Terraform (infra/modules/argocd-bootstrap) before this runs.
+#
 # Deploy order is controlled by argocd.argoproj.io/sync-wave:
-#   Wave 0: ingress-nginx, cert-manager, external-secrets
+#   Wave 0: ingress-nginx, cert-manager
 #   Wave 1: platform-secrets, prometheus-stack, signoz, jerney
 #   Wave 2: loki-stack, ingress-apps (ClusterIssuer + Ingresses)
 # ==============================================================

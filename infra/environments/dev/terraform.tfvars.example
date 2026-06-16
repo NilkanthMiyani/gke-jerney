@@ -1,0 +1,41 @@
+# ==============================================================
+# Example Terraform Variables — Dev Environment
+# ==============================================================
+# Copy to `terraform.tfvars` and fill in your values.
+# DO NOT commit the real terraform.tfvars (it holds secrets).
+#
+# Required: project_id + the three secrets. Everything else has a
+# sensible dev default (shown below) — uncomment to override.
+
+# ---- GCP Context ----
+project_id  = "YOUR_GCP_PROJECT_ID"
+region      = "us-central1"
+zone        = "us-central1-a"
+environment = "dev"
+
+# ---- Cluster ----
+cluster_name = "jerney-gke-dev"
+
+# Node pool (optional — dev defaults shown)
+# node_machine_type   = "e2-medium"   # 2 vCPU / 4 GB — minimum practical for the full stack
+# min_node_count      = 1             # scales down to 1 when idle
+# max_node_count      = 3
+# disk_size_gb        = 30
+# use_spot            = true          # ~70% cheaper, reclaimable — fine for dev
+# deletion_protection = false         # allow `terraform destroy`
+
+# ---- Networking (optional — defaults shown) ----
+# subnet_cidr   = "10.0.0.0/24"       # node subnet
+# pods_cidr     = "10.100.0.0/14"     # VPC-native pod range
+# services_cidr = "10.104.0.0/20"     # ClusterIP service range
+
+# ---- GitOps ----
+gitops_repo_url        = "https://github.com/NilkanthMiyani/gke-jerney.git"
+gitops_target_revision = "main"
+gitops_apps_path       = "k8s-gke/apps"
+
+# ---- Secrets (seeded into GCP Secret Manager) ----
+# Replace with strong, unique values for this environment.
+postgres_password      = "replace-with-dev-postgres-password"
+grafana_admin_password = "replace-with-dev-grafana-password"
+alertmanager_smtp_key  = "re_replace_with_resend_api_key"

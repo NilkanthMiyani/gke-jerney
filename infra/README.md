@@ -93,18 +93,19 @@ Internet
 ## Full Deployment Flow
 
 ```
-1. terraform apply        -- provisions GKE cluster + VPC (main.tf)
-                             seeds Secret Manager values from terraform.tfvars
-                             creates jerney-eso SA + Workload Identity binding
-                             installs ArgoCD via Helm (bootstrap.tf)
-                             applies root-app.yaml via kubectl_manifest
+1. terraform apply        -- from environments/<env>:
+                             networking module    -> VPC, subnet, firewall
+                             iam module           -> node SA + jerney-eso SA + WI binding
+                             secret-manager module-> seeds Secret Manager from tfvars
+                             gke-cluster module   -> GKE cluster + node pool
+                             argocd-bootstrap     -> installs ArgoCD + ESO (Helm),
+                                                     ClusterSecretStore, and root-app
 
 2. ArgoCD syncs
-   wave 0: external-secrets  -- installs ESO from Helm chart
    wave 0: ingress-nginx     -- nginx controller (provisions an L4 LoadBalancer)
    wave 0: cert-manager      -- installs cert-manager + CRDs
-   wave 1: platform-secrets  -- ClusterSecretStore + ExternalSecrets
-                                K8s Secrets appear in jerney + monitoring
+   wave 1: platform-secrets  -- ExternalSecrets (the ClusterSecretStore is created
+                                by Terraform); K8s Secrets appear in jerney + monitoring
    wave 1: prometheus-stack, jerney, signoz
                              -- apps read secrets via existingSecret refs
    wave 2: loki-stack        -- Loki + Promtail (log aggregation)
@@ -165,11 +166,12 @@ terraform init
 terraform apply
 ```
 
-Copy the output bucket name into the backend block in `infra/terraform-gke/versions.tf`:
+Copy the output bucket name into the backend block in each
+`infra/environments/<env>/versions.tf` (the `prefix` already differs per env):
 ```hcl
 backend "gcs" {
   bucket = "<output-bucket-name>"
-  prefix = "terraform/state"
+  prefix = "jerney-gke/dev/state"   # staging/prod use their own prefix
 }
 ```
 
@@ -186,7 +188,8 @@ automatically once each Ingress is created and DNS resolves to the nginx LB IP
 
 ### 4. Set your project ID
 
-Edit `terraform.tfvars` (copy from `terraform.tfvars.example`):
+Pick an environment under `infra/environments/` (`dev`, `staging`, or `prod`) and
+edit its `terraform.tfvars` (copy from `terraform.tfvars.example`):
 ```hcl
 project_id = "your-actual-project-id"
 ```
@@ -194,14 +197,15 @@ project_id = "your-actual-project-id"
 ### 5. Apply
 
 ```bash
-cd terraform-gke/
+cd infra/environments/dev/   # or staging / prod
 
 terraform init
 terraform plan
 terraform apply
 ```
 
-Apply takes ~5-10 minutes (mostly GKE control plane provisioning).
+Apply takes ~5-10 minutes (mostly GKE control plane provisioning). Each environment
+keeps its own state (separate `prefix` in the GCS backend) and its own cluster.
 
 ### 6. Secrets (seeded by Terraform from tfvars)
 
@@ -227,7 +231,7 @@ alertmanager_smtp_key  = "re_..."   # Resend API key
 Copy the command from Terraform output:
 ```bash
 terraform output kubectl_config_command
-# -> gcloud container clusters get-credentials jerney-gke --zone us-central1-a --project <your-project>
+# -> gcloud container clusters get-credentials jerney-gke-dev --zone us-central1-a --project <your-project>
 ```
 
 Run it, then verify:
@@ -235,7 +239,8 @@ Run it, then verify:
 kubectl get nodes
 ```
 
-> ArgoCD and the root app-of-apps are applied automatically by `terraform apply` via `bootstrap.tf` -- no post-setup script needed.
+> ArgoCD, ESO, the ClusterSecretStore, and the root app-of-apps are all applied
+> automatically by `terraform apply` (the `argocd-bootstrap` module) -- no post-setup script needed.
 
 ### 8. Point DNS at the nginx LoadBalancer
 
@@ -302,31 +307,40 @@ infra/
 |   +-- main.tf           # google_storage_bucket with versioning (local state intentional)
 |   +-- terraform.tfvars  # set project_id + state_bucket_name here
 |
-+-- terraform-gke/        # main cluster config (run after bootstrap)
-    +-- versions.tf       # terraform block (~> 1.5), required_providers (google, helm, kubectl)
-    +-- main.tf           # VPC, subnet, firewall, GKE cluster + node pool,
-    |                     # ESO service account, IAM bindings, Secret Manager secrets
-    +-- bootstrap.tf      # ArgoCD Helm release + root app-of-apps (kubectl_manifest)
-    +-- variables.tf      # all input variables with descriptions
-    +-- outputs.tf        # cluster endpoint, kubectl command, service account
-    +-- terraform.tfvars  # your values (set project_id here)
-    +-- README.md         # this file
++-- modules/             # reusable building blocks (no provider/backend config)
+|   +-- networking/       # VPC, VPC-native subnet (pods/services ranges), firewall rules
+|   +-- gke-cluster/      # GKE Standard cluster + managed node pool
+|   +-- iam/              # node SA + jerney-eso SA, IAM roles, Workload Identity binding
+|   +-- secret-manager/   # GCP Secret Manager secrets (map-driven)
+|   +-- argocd-bootstrap/ # ArgoCD + ESO (Helm), gcpsm ClusterSecretStore, root app-of-apps
+|
++-- environments/        # one composition + state file per environment
+|   +-- dev/              # main.tf wires the modules; variables.tf/outputs.tf/versions.tf
+|   |   +-- versions.tf       # terraform block, providers, gcs backend (prefix: .../dev/state)
+|   |   +-- main.tf           # module composition + helm/kubectl provider config
+|   |   +-- variables.tf      # input variables (dev defaults: spot on, e2-medium)
+|   |   +-- outputs.tf        # cluster endpoint, kubectl command, service accounts
+|   |   +-- terraform.tfvars.example
+|   +-- staging/          # same shape; spot off, own state prefix
+|   +-- prod/             # same shape; on-demand e2-standard-2, deletion_protection on
+|
++-- README.md            # this file
 
 k8s-gke/
 +-- apps/
-|   +-- root-app.yaml           # ArgoCD App-of-Apps (bootstrapped by Terraform)
+|   +-- root-app.yaml           # ArgoCD App-of-Apps (created by Terraform bootstrap)
 |   +-- ingress-nginx.yaml      # wave 0 -- nginx ingress controller (L4 LoadBalancer)
 |   +-- cert-manager.yaml       # wave 0 -- cert-manager (Let's Encrypt TLS)
-|   +-- external-secrets.yaml   # wave 0 -- installs ESO from Helm chart
-|   +-- platform-secrets.yaml   # wave 1 -- ClusterSecretStore + ExternalSecrets
+|   +-- platform-secrets.yaml   # wave 1 -- ExternalSecrets (store created by Terraform)
 |   +-- prometheus-stack.yaml   # wave 1 -- kube-prometheus-stack (multi-source)
 |   +-- jerney.yaml             # wave 1 -- app Helm chart (incl. nginx Ingress)
-|   +-- loki-stack.yaml         # wave 1 -- Loki + Promtail
+|   +-- signoz.yaml             # wave 1 -- SigNoz tracing
+|   +-- loki-stack.yaml         # wave 2 -- Loki + Promtail
 |   +-- ingress-apps.yaml       # wave 2 -- ClusterIssuer + platform Ingresses
 +-- platform/
     +-- external-secrets/
-    |   +-- cluster-secret-store.yaml  # ClusterSecretStore -> GCP Secret Manager
     |   +-- external-secrets.yaml      # 3 ExternalSecrets (DB, Grafana, SMTP key)
+    |                                  # (ClusterSecretStore lives in the argocd-bootstrap module)
     +-- prometheus-stack/
     |   +-- values.yaml                # Grafana, Alertmanager, Prometheus config
     +-- loki-stack/
