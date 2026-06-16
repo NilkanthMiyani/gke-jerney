@@ -2,15 +2,32 @@
 # Example Terraform Variables — Prod Environment
 # ==============================================================
 # Copy to `terraform.tfvars` and fill in your values.
-# Do NOT commit the real terraform.tfvars (it holds secrets).
+# DO NOT commit the real terraform.tfvars (it holds secrets).
+#
+# Required: project_id + the three secrets. Everything else has a
+# prod-hardened default (shown below) — uncomment to override.
 
 # ---- GCP Context ----
-project_id = "YOUR_GCP_PROJECT_ID"
-region     = "us-central1"
-zone       = "us-central1-a"
+project_id  = "YOUR_GCP_PROJECT_ID"
+region      = "us-central1"
+zone        = "us-central1-a"
+environment = "prod"
 
 # ---- Cluster ----
 cluster_name = "jerney-gke-prod"
+
+# Node pool (optional — prod defaults shown)
+# node_machine_type   = "e2-standard-2"  # 2 vCPU / 8 GB
+# min_node_count      = 2                 # headroom for rolling updates
+# max_node_count      = 5
+# disk_size_gb        = 50
+# use_spot            = false             # on-demand for stability
+# deletion_protection = true             # blocks `terraform destroy` of the cluster
+
+# ---- Networking (optional — defaults shown) ----
+# subnet_cidr   = "10.0.0.0/24"
+# pods_cidr     = "10.100.0.0/14"
+# services_cidr = "10.104.0.0/20"
 
 # ---- GitOps ----
 gitops_repo_url        = "https://github.com/NilkanthMiyani/gke-jerney.git"
@@ -18,6 +35,7 @@ gitops_target_revision = "main"
 gitops_apps_path       = "k8s-gke/apps"
 
 # ---- Secrets (seeded into GCP Secret Manager) ----
+# Replace with strong, unique values for this environment.
 postgres_password      = "replace-with-prod-postgres-password"
 grafana_admin_password = "replace-with-prod-grafana-password"
 alertmanager_smtp_key  = "re_replace_with_resend_api_key"
