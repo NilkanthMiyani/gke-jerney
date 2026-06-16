@@ -34,6 +34,17 @@ postgresql:
       size: 10Gi
       # GKE standard-rwo = Persistent Disk (ReadWriteOnce).
       storageClass: "standard-rwo"
+    # The Bitnami default `resourcesPreset: "nano"` caps CPU at 150m, which
+    # throttles the Postgres primary under load (CPUThrottlingHigh alert).
+    # Setting explicit resources overrides the preset.
+    resourcesPreset: "none"
+    resources:
+      requests:
+        cpu: 500m
+        memory: 512Mi
+      limits:
+        cpu: "2"
+        memory: 1Gi
 otel:
   endpoint: http://signoz-otel-collector.platform.svc.cluster.local:4317
 ingress:
