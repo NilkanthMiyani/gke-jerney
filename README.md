@@ -40,32 +40,23 @@ TLS issued by cert-manager.
 ├── docs/
 │   └── architecture.svg          # this diagram
 │
-├── infra/                       # modular Terraform (mirrors jerney-aks / jerney-eks)
+├── infra/                       # flat Terraform structure (mirrors jerney-aks / jerney-eks)
 │   ├── bootstrap/               # run first — creates the GCS bucket for TF remote state
-│   │   └── main.tf              # google_storage_bucket (local state, intentional)
-│   ├── modules/                 # reusable, cloud-specific building blocks
-│   │   ├── networking/          # VPC, VPC-native subnet, firewall rules
-│   │   ├── gke-cluster/         # GKE Standard cluster + node pool
-│   │   ├── iam/                 # node SA + ESO SA + Workload Identity binding
-│   │   ├── secret-manager/      # GCP Secret Manager secrets (map-driven)
-│   │   └── argocd-bootstrap/    # ArgoCD + ESO + ClusterSecretStore + root app
-│   ├── environments/            # one composition + state file per environment
-│   │   ├── dev/                 # main.tf · variables.tf · outputs.tf · versions.tf · tfvars.example
-│   │   ├── staging/
-│   │   └── prod/
+│   ├── networking.tf            # VPC, VPC-native subnet, firewall rules
+│   ├── gke-cluster.tf           # GKE Standard cluster + node pool
+│   ├── iam.tf                   # node SA + ESO SA + Workload Identity binding
+│   ├── secrets.tf               # GCP Secret Manager secrets (map-driven)
+│   ├── bootstrap.tf             # ArgoCD + ESO + ClusterSecretStore + root app
+│   ├── variables.tf             # all input variables
+│   ├── dev.tfvars.example       # per-environment values
 │   └── README.md                # detailed Terraform / runbook docs
 │
 └── k8s-gke/
-    ├── apps/                     # ArgoCD Applications (watched by root-app.yaml)
-    │   ├── root-app.yaml         #          App-of-Apps (created by Terraform bootstrap)
-    │   ├── ingress-nginx.yaml    # wave 0 — NGINX ingress controller
-    │   ├── cert-manager.yaml     # wave 0 — cert-manager + CRDs
-    │   ├── platform-secrets.yaml # wave 1 — ExternalSecrets (store comes from Terraform)
-    │   ├── prometheus-stack.yaml # wave 1 — kube-prometheus-stack
-    │   ├── jerney.yaml           # wave 1 — app Helm chart
-    │   ├── signoz.yaml           # wave 1 — SigNoz tracing
-    │   ├── loki-stack.yaml       # wave 2 — Loki + Promtail
-    │   └── ingress-apps.yaml     # wave 2 — ClusterIssuer + platform Ingresses
+    ├── apps/                     # ArgoCD Applications (Kustomize overlays)
+    │   ├── base/                 # base apps + sync waves (ingress-nginx, cert-manager, etc.)
+    │   ├── dev/                  # dev overlay pointing to values-dev.yaml
+    │   ├── staging/              # staging overlay
+    │   └── prod/                 # prod overlay
     │
     ├── helm/jerney/              # app chart: frontend + backend + PostgreSQL dependency
     │   ├── values.yaml           # image tags, HPA, OTEL endpoint, ingress host
@@ -134,9 +125,12 @@ gcloud auth application-default login
 cd infra/bootstrap && terraform init && terraform apply
 
 # 3. Provision a cluster + bootstrap ArgoCD (pick an environment)
-cd ../environments/dev                         # or staging / prod
-cp terraform.tfvars.example terraform.tfvars   # set project_id + the 3 secret values
-terraform init && terraform apply              # ~10 min
+cd ../
+terraform workspace new dev                    # or staging / prod
+terraform workspace select dev
+cp dev.tfvars.example dev.tfvars               # set project_id + the 3 secret values
+terraform init
+terraform apply -var-file="dev.tfvars"         # ~10 min
 
 # 4. Point DNS at the NGINX LoadBalancer IP
 kubectl get svc -n ingress-nginx ingress-nginx-controller \

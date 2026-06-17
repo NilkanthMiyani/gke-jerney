@@ -9,7 +9,7 @@
 # for_each cannot take a sensitive value, so iterate over the secret
 # names (not the values) and look up each sensitive value by key.
 resource "google_secret_manager_secret" "this" {
-  for_each = nonsensitive(toset(keys(var.secrets)))
+  for_each = nonsensitive(toset(keys(local.secrets)))
 
   secret_id = each.value
 
@@ -22,5 +22,5 @@ resource "google_secret_manager_secret_version" "this" {
   for_each = google_secret_manager_secret.this
 
   secret      = each.value.id
-  secret_data = var.secrets[each.key]
+  secret_data = local.secrets[each.key]
 }

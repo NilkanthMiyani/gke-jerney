@@ -14,18 +14,7 @@
 # different YAML file per env.
 # ==============================================================
 
-terraform {
-  required_providers {
-    helm = {
-      source  = "hashicorp/helm"
-      version = "~> 2.16"
-    }
-    kubectl = {
-      source  = "gavinbunney/kubectl"
-      version = "~> 1.14"
-    }
-  }
-}
+
 
 # ---- 1. ArgoCD ----
 resource "helm_release" "argocd" {
@@ -66,7 +55,7 @@ resource "helm_release" "external_secrets" {
   # Workload Identity: bind the ESO k8s ServiceAccount to the GCP service account.
   set {
     name  = "serviceAccount.annotations.iam\\.gke\\.io/gcp-service-account"
-    value = var.eso_service_account_email
+    value = google_service_account.eso.email
   }
 }
 
@@ -86,30 +75,43 @@ resource "kubectl_manifest" "eso_cluster_secret_store" {
   depends_on = [helm_release.external_secrets]
 }
 
-# ---- 4. Root App-of-Apps ----
-resource "kubectl_manifest" "argocd_root_app" {
-  yaml_body = <<-YAML
-    apiVersion: argoproj.io/v1alpha1
-    kind: Application
-    metadata:
-      name: platform
-      namespace: argocd
-      finalizers:
-        - resources-finalizer.argocd.argoproj.io
-    spec:
-      project: default
-      source:
-        repoURL: ${var.gitops_repo_url}
-        targetRevision: ${var.gitops_target_revision}
-        path: ${var.gitops_apps_path}
-      destination:
-        server: https://kubernetes.default.svc
-        namespace: argocd
-      syncPolicy:
-        automated:
-          prune: true
-          selfHeal: true
-  YAML
+# ---- 4. Root App-of-Apps (via argocd-apps chart) ----
+resource "helm_release" "argocd_apps" {
+  name             = "argocd-apps"
+  repository       = "https://argoproj.github.io/argo-helm"
+  chart            = "argocd-apps"
+  version          = "2.0.2" # argocd-apps chart version
+  namespace        = "argocd"
+  create_namespace = false
+
+  values = [
+    yamlencode({
+      applications = {
+        platform = {
+          namespace = "argocd"
+          finalizers = [
+            "resources-finalizer.argocd.argoproj.io"
+          ]
+          project = "default"
+          source = {
+            repoURL        = var.gitops_repo_url
+            targetRevision = var.gitops_target_revision
+            path           = var.gitops_apps_path
+          }
+          destination = {
+            server    = "https://kubernetes.default.svc"
+            namespace = "argocd"
+          }
+          syncPolicy = {
+            automated = {
+              prune    = true
+              selfHeal = true
+            }
+          }
+        }
+      }
+    })
+  ]
 
   depends_on = [helm_release.argocd]
 }

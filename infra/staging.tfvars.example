@@ -1,0 +1,33 @@
+# ==============================================================
+# Example Terraform Variables — Staging Environment
+# ==============================================================
+# Copy to `staging.tfvars` and fill in your values.
+# DO NOT commit the real staging.tfvars (it holds secrets).
+
+# ---- GCP Context ----
+project_id  = "YOUR_GCP_PROJECT_ID"
+region      = "us-central1"
+zone        = "us-central1-a"
+environment = "staging"
+
+# ---- Cluster ----
+cluster_name       = "jerney-gke-stg"
+kubernetes_version = "1.35"
+node_machine_type  = "e2-medium"
+min_node_count     = 1
+max_node_count     = 4
+disk_size_gb       = 50
+
+# Optional defaults
+use_spot            = true
+deletion_protection = false
+
+# ---- GitOps ----
+gitops_repo_url        = "https://github.com/NilkanthMiyani/gke-jerney.git"
+gitops_target_revision = "staging"
+gitops_apps_path       = "k8s-gke/apps/staging"
+
+# ---- Secrets (seeded into GCP Secret Manager) ----
+postgres_password      = "replace-with-staging-postgres-password"
+grafana_admin_password = "replace-with-staging-grafana-password"
+alertmanager_smtp_key  = "re_replace_with_resend_api_key"

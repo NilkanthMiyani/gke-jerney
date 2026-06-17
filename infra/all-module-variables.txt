@@ -1,0 +1,283 @@
+variable "cluster_name" {
+  description = "Cluster name used as prefix for network resources"
+  type        = string
+  nullable    = false
+}
+
+variable "region" {
+  description = "GCP region for the subnet"
+  type        = string
+  nullable    = false
+}
+
+variable "subnet_cidr" {
+  description = "Primary CIDR for the node subnet"
+  type        = string
+  default     = "10.0.0.0/24"
+  nullable    = false
+}
+
+variable "pods_range_name" {
+  description = "Name of the secondary range for pod IPs"
+  type        = string
+  default     = "pods"
+  nullable    = false
+}
+
+variable "pods_cidr" {
+  description = "Secondary CIDR for pod IPs (VPC-native)"
+  type        = string
+  default     = "10.100.0.0/14"
+  nullable    = false
+}
+
+variable "services_range_name" {
+  description = "Name of the secondary range for service IPs"
+  type        = string
+  default     = "services"
+  nullable    = false
+}
+
+variable "services_cidr" {
+  description = "Secondary CIDR for ClusterIP service IPs"
+  type        = string
+  default     = "10.104.0.0/20"
+  nullable    = false
+}
+
+variable "node_network_tag" {
+  description = "Network tag applied to nodes — firewall rules target this tag"
+  type        = string
+  nullable    = false
+}
+variable "cluster_name" {
+  description = "Cluster name used as prefix for service account IDs"
+  type        = string
+  nullable    = false
+
+  validation {
+    # account_id is "<cluster_name>-nodes"/"-eso" and must be ≤30 chars total
+    condition     = length(var.cluster_name) <= 24
+    error_message = "cluster_name must be ≤24 chars so the derived service account IDs stay within the 30-char limit."
+  }
+}
+
+variable "project_id" {
+  description = "GCP project ID (for IAM bindings and the Workload Identity pool)"
+  type        = string
+  nullable    = false
+}
+
+variable "node_sa_roles" {
+  description = "IAM roles granted to the GKE node service account"
+  type        = list(string)
+  default = [
+    "roles/logging.logWriter",
+    "roles/monitoring.metricWriter",
+    "roles/monitoring.viewer",
+    "roles/artifactregistry.reader",
+  ]
+  nullable = false
+}
+
+variable "eso_namespace" {
+  description = "Kubernetes namespace where ESO runs"
+  type        = string
+  default     = "external-secrets"
+  nullable    = false
+}
+
+variable "eso_k8s_service_account" {
+  description = "Kubernetes ServiceAccount name ESO uses (target of the Workload Identity binding)"
+  type        = string
+  default     = "external-secrets"
+  nullable    = false
+}
+variable "cluster_name" {
+  description = "GKE cluster name"
+  type        = string
+  nullable    = false
+}
+
+variable "zone" {
+  description = "Single GCP zone for the cluster + node pool"
+  type        = string
+  nullable    = false
+}
+
+variable "project_id" {
+  description = "GCP project ID (for the Workload Identity pool)"
+  type        = string
+  nullable    = false
+}
+
+variable "kubernetes_version" {
+  description = "GKE master version — accepts a partial version like \"1.31\" (latest patch). null = GKE default."
+  type        = string
+  default     = null
+}
+
+# ---- Networking (from the networking module) ----
+variable "network_id" {
+  description = "VPC network ID"
+  type        = string
+  nullable    = false
+}
+
+variable "subnet_id" {
+  description = "Node subnet ID"
+  type        = string
+  nullable    = false
+}
+
+variable "pods_range_name" {
+  description = "Secondary range name for pods"
+  type        = string
+  nullable    = false
+}
+
+variable "services_range_name" {
+  description = "Secondary range name for services"
+  type        = string
+  nullable    = false
+}
+
+variable "node_network_tag" {
+  description = "Network tag applied to nodes — must match the firewall rules"
+  type        = string
+  nullable    = false
+}
+
+# ---- Node pool ----
+variable "node_machine_type" {
+  description = "GCE machine type for nodes"
+  type        = string
+  default     = "e2-medium"
+  nullable    = false
+}
+
+variable "min_node_count" {
+  description = "Minimum nodes in the pool"
+  type        = number
+  default     = 1
+  nullable    = false
+}
+
+variable "max_node_count" {
+  description = "Maximum nodes in the pool"
+  type        = number
+  default     = 3
+  nullable    = false
+}
+
+variable "disk_size_gb" {
+  description = "Node boot disk size in GB"
+  type        = number
+  default     = 30
+  nullable    = false
+}
+
+variable "disk_type" {
+  description = "Node boot disk type — pd-standard (cheapest) or pd-ssd"
+  type        = string
+  default     = "pd-standard"
+  nullable    = false
+}
+
+variable "use_spot" {
+  description = "Use Spot VMs (~70% cheaper; reclaimable). Set false for staging/prod."
+  type        = bool
+  default     = true
+  nullable    = false
+}
+
+variable "node_service_account_email" {
+  description = "Email of the node service account (from the iam module)"
+  type        = string
+  nullable    = false
+}
+
+variable "node_labels" {
+  description = "Labels applied to all nodes"
+  type        = map(string)
+  default     = {}
+}
+
+# ---- Cluster options ----
+variable "http_load_balancing_disabled" {
+  description = "Disable the GKE GCE L7 ingress add-on (nginx-only cluster)"
+  type        = bool
+  default     = true
+  nullable    = false
+}
+
+variable "deletion_protection" {
+  description = "Block terraform destroy of the cluster (set true for prod)"
+  type        = bool
+  default     = false
+  nullable    = false
+}
+variable "argocd_chart_version" {
+  description = "ArgoCD Helm chart version"
+  type        = string
+  default     = "9.5.20"
+  nullable    = false
+}
+
+variable "eso_chart_version" {
+  description = "External Secrets Operator Helm chart version"
+  type        = string
+  default     = "0.10.7"
+  nullable    = false
+}
+
+variable "eso_namespace" {
+  description = "Namespace to install ESO into"
+  type        = string
+  default     = "external-secrets"
+  nullable    = false
+}
+
+variable "eso_service_account_email" {
+  description = "GCP service account email for the ESO Workload Identity annotation"
+  type        = string
+  nullable    = false
+}
+
+variable "project_id" {
+  description = "GCP project ID — used by the gcpsm ClusterSecretStore"
+  type        = string
+  nullable    = false
+}
+
+variable "secret_store_name" {
+  description = "Name of the ClusterSecretStore (referenced by ExternalSecrets in GitOps)"
+  type        = string
+  default     = "gcp-secret-manager"
+  nullable    = false
+}
+
+variable "gitops_repo_url" {
+  description = "Git repository URL for the ArgoCD App-of-Apps"
+  type        = string
+  nullable    = false
+}
+
+variable "gitops_target_revision" {
+  description = "Git branch/tag for ArgoCD to track"
+  type        = string
+  default     = "main"
+  nullable    = false
+}
+
+variable "gitops_apps_path" {
+  description = "Path within the repo to the ArgoCD Application manifests"
+  type        = string
+  nullable    = false
+}
+variable "secrets" {
+  description = "Map of secret_id => secret value to seed into GCP Secret Manager"
+  type        = map(string)
+  sensitive   = true
+  nullable    = false
+}

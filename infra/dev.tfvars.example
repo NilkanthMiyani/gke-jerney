@@ -1,8 +1,8 @@
 # ==============================================================
 # Example Terraform Variables — Dev Environment
 # ==============================================================
-# Copy to `terraform.tfvars` and fill in your values.
-# DO NOT commit the real terraform.tfvars (it holds secrets).
+# Copy to `dev.tfvars` and fill in your values.
+# DO NOT commit the real dev.tfvars (it holds secrets).
 #
 # Required: project_id + the three secrets. Everything else has a
 # sensible dev default (shown below) — uncomment to override.
@@ -33,7 +33,7 @@ disk_size_gb       = 30
 # ---- GitOps ----
 gitops_repo_url        = "https://github.com/NilkanthMiyani/gke-jerney.git"
 gitops_target_revision = "main"
-gitops_apps_path       = "k8s-gke/apps"
+gitops_apps_path       = "k8s-gke/apps/dev"
 
 # ---- Secrets (seeded into GCP Secret Manager) ----
 # Replace with strong, unique values for this environment.

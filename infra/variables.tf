@@ -1,5 +1,5 @@
 # ==============================================================
-# Staging Environment — Input Variables
+# Input Variables
 # ==============================================================
 
 # ---- GCP Context ----
@@ -31,7 +31,7 @@ variable "zone" {
 variable "environment" {
   description = "Environment label"
   type        = string
-  default     = "staging"
+  default     = "dev"
   nullable    = false
 }
 
@@ -39,7 +39,7 @@ variable "environment" {
 variable "cluster_name" {
   description = "GKE cluster name"
   type        = string
-  default     = "jerney-gke-staging"
+  default     = "jerney-gke-dev"
   nullable    = false
 }
 
@@ -66,7 +66,7 @@ variable "min_node_count" {
 variable "max_node_count" {
   description = "Maximum nodes in the pool"
   type        = number
-  default     = 4
+  default     = 3
   nullable    = false
 }
 
@@ -77,10 +77,17 @@ variable "disk_size_gb" {
   nullable    = false
 }
 
+variable "disk_type" {
+  description = "Node boot disk type — pd-standard (cheapest) or pd-ssd"
+  type        = string
+  default     = "pd-standard"
+  nullable    = false
+}
+
 variable "use_spot" {
-  description = "Use Spot VMs — false for staging (more stable than dev)"
+  description = "Use Spot VMs (cheap, reclaimable) — true for dev"
   type        = bool
-  default     = false
+  default     = true
   nullable    = false
 }
 
@@ -89,6 +96,19 @@ variable "deletion_protection" {
   type        = bool
   default     = false
   nullable    = false
+}
+
+variable "http_load_balancing_disabled" {
+  description = "Disable the GKE GCE L7 ingress add-on (nginx-only cluster)"
+  type        = bool
+  default     = true
+  nullable    = false
+}
+
+variable "node_labels" {
+  description = "Labels applied to all nodes"
+  type        = map(string)
+  default     = {}
 }
 
 # ---- Networking ----
@@ -113,7 +133,41 @@ variable "services_cidr" {
   nullable    = false
 }
 
-# ---- GitOps ----
+variable "pods_range_name" {
+  description = "Secondary range name for pods"
+  type        = string
+  default     = "pods"
+  nullable    = false
+}
+
+variable "services_range_name" {
+  description = "Secondary range name for services"
+  type        = string
+  default     = "services"
+  nullable    = false
+}
+
+variable "node_network_tag" {
+  description = "Network tag applied to nodes — must match the firewall rules"
+  type        = string
+  default     = "gke-node"
+  nullable    = false
+}
+
+# ---- IAM ----
+variable "node_sa_roles" {
+  description = "IAM roles granted to the GKE node service account"
+  type        = list(string)
+  default = [
+    "roles/logging.logWriter",
+    "roles/monitoring.metricWriter",
+    "roles/monitoring.viewer",
+    "roles/artifactregistry.reader",
+  ]
+  nullable = false
+}
+
+# ---- GitOps & Bootstrapping ----
 variable "gitops_repo_url" {
   description = "Git repo URL for ArgoCD"
   type        = string
@@ -132,6 +186,41 @@ variable "gitops_apps_path" {
   description = "Path to ArgoCD app manifests in the repo"
   type        = string
   default     = "k8s-gke/apps"
+  nullable    = false
+}
+
+variable "argocd_chart_version" {
+  description = "ArgoCD Helm chart version"
+  type        = string
+  default     = "9.5.20"
+  nullable    = false
+}
+
+variable "eso_chart_version" {
+  description = "External Secrets Operator Helm chart version"
+  type        = string
+  default     = "0.10.7"
+  nullable    = false
+}
+
+variable "eso_namespace" {
+  description = "Kubernetes namespace where ESO runs"
+  type        = string
+  default     = "external-secrets"
+  nullable    = false
+}
+
+variable "eso_k8s_service_account" {
+  description = "Kubernetes ServiceAccount name ESO uses (target of the Workload Identity binding)"
+  type        = string
+  default     = "external-secrets"
+  nullable    = false
+}
+
+variable "secret_store_name" {
+  description = "Name of the ClusterSecretStore (referenced by ExternalSecrets in GitOps)"
+  type        = string
+  default     = "gcp-secret-manager"
   nullable    = false
 }
 

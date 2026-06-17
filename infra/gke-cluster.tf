@@ -17,8 +17,8 @@ resource "google_container_cluster" "this" {
   remove_default_node_pool = true
   initial_node_count       = 1
 
-  network    = var.network_id
-  subnetwork = var.subnet_id
+  network    = google_compute_network.this.id
+  subnetwork = google_compute_subnetwork.nodes.id
 
   # VPC-native cluster — pods get real VPC IPs, enables NetworkPolicy.
   ip_allocation_policy {
@@ -61,7 +61,7 @@ resource "google_container_node_pool" "this" {
     disk_type    = var.disk_type
     spot         = var.use_spot
 
-    service_account = var.node_service_account_email
+    service_account = google_service_account.nodes.email
     oauth_scopes = [
       "https://www.googleapis.com/auth/logging.write",
       "https://www.googleapis.com/auth/monitoring",

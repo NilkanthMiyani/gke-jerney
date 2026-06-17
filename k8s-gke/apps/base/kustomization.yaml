@@ -1,0 +1,12 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - platform-secrets.yaml
+  - prometheus-stack.yaml
+  - jerney.yaml
+  - loki-stack.yaml
+  - ingress-apps.yaml
+  - cert-manager.yaml
+  - ingress-nginx.yaml
+  - signoz.yaml

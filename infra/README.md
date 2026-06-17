@@ -1,8 +1,8 @@
 # Jerney — GKE Infrastructure (Terraform)
 
-This directory provisions a **GKE Standard cluster** on Google Cloud Platform to run the Jerney 3-tier blog application, using a **modular Terraform layout** (`modules/` + per-environment `environments/`) that mirrors the `jerney-aks` / `jerney-eks` siblings.
+This directory provisions a **GKE Standard cluster** on Google Cloud Platform to run the Jerney 3-tier blog application, using a **flat Terraform layout** (`infra/` without nested modules) and **Terraform Workspaces** for environment isolation. This mirrors the `jerney-aks` / `jerney-eks` siblings.
 
-Resource names below use the per-environment `<cluster>` prefix — `jerney-gke-dev`, `jerney-gke-staging`, or `jerney-gke-prod` — so the three environments can coexist in one project.
+Resource names below use the per-environment `<cluster>` prefix — `jerney-gke-dev`, `jerney-gke-stg`, or `jerney-gke-prod` — so the three environments can coexist in one project.
 
 ---
 
@@ -22,7 +22,7 @@ Resource names below use the per-environment `<cluster>` prefix — `jerney-gke-
 | `jerney-grafana-admin-password` | Secret Manager Secret | Grafana admin password (seeded by Terraform from tfvars) |
 | `jerney-alertmanager-smtp-key` | Secret Manager Secret | Alertmanager SMTP key (seeded by Terraform from tfvars) |
 
-> ArgoCD, the External Secrets Operator, and the `gcp-secret-manager` ClusterSecretStore are also created in-cluster by the `argocd-bootstrap` module.
+> ArgoCD, the External Secrets Operator, and the `gcp-secret-manager` ClusterSecretStore are also created in-cluster by `bootstrap.tf`.
 
 ### IP Ranges
 
@@ -107,13 +107,13 @@ Internet
 ## Full Deployment Flow
 
 ```
-1. terraform apply        -- from environments/<env>:
-                             networking module    -> VPC, subnet, firewall
-                             iam module           -> node SA + jerney-eso SA + WI binding
-                             secret-manager module-> seeds Secret Manager from tfvars
-                             gke-cluster module   -> GKE cluster + node pool
-                             argocd-bootstrap     -> installs ArgoCD + ESO (Helm),
-                                                     ClusterSecretStore, and root-app
+1. terraform apply        -- from infra/ (using workspaces):
+                             networking.tf    -> VPC, subnet, firewall
+                             iam.tf           -> node SA + jerney-eso SA + WI binding
+                             secrets.tf       -> seeds Secret Manager from tfvars
+                             gke-cluster.tf   -> GKE cluster + node pool
+                             bootstrap.tf     -> installs ArgoCD + ESO (Helm),
+                                                 ClusterSecretStore, and root-app
 
 2. ArgoCD syncs
    wave 0: ingress-nginx     -- nginx controller (provisions an L4 LoadBalancer)
@@ -180,12 +180,12 @@ terraform init
 terraform apply
 ```
 
-Copy the output bucket name into the backend block in each
-`infra/environments/<env>/versions.tf` (the `prefix` already differs per env):
+Copy the output bucket name into the backend block in
+`infra/versions.tf` (the `prefix` is automatically managed by Terraform workspaces):
 ```hcl
 backend "gcs" {
   bucket = "<output-bucket-name>"
-  prefix = "jerney-gke/dev/state"   # staging/prod use their own prefix
+  prefix = "jerney-gke/state"
 }
 ```
 
@@ -202,8 +202,8 @@ automatically once each Ingress is created and DNS resolves to the nginx LB IP
 
 ### 4. Set your project ID
 
-Pick an environment under `infra/environments/` (`dev`, `staging`, or `prod`) and
-edit its `terraform.tfvars` (copy from `terraform.tfvars.example`):
+Pick an environment (e.g. `dev`, `staging`, or `prod`) and
+edit its `<env>.tfvars` (copy from `<env>.tfvars.example`):
 ```hcl
 project_id = "your-actual-project-id"
 ```
@@ -211,11 +211,14 @@ project_id = "your-actual-project-id"
 ### 5. Apply
 
 ```bash
-cd infra/environments/dev/   # or staging / prod
+cd infra/
 
 terraform init
-terraform plan
-terraform apply
+terraform workspace new dev
+terraform workspace select dev
+
+terraform plan -var-file="dev.tfvars"
+terraform apply -var-file="dev.tfvars"
 ```
 
 Apply takes ~5-10 minutes (mostly GKE control plane provisioning). Each environment
@@ -317,49 +320,53 @@ This deletes the cluster, VPC, firewall rules, service accounts, and Secret Mana
 
 ```
 infra/
-+-- bootstrap/            # run first -- creates the GCS bucket for remote state
-|   +-- main.tf           # google_storage_bucket with versioning (local state intentional)
-|   +-- terraform.tfvars  # set project_id + state_bucket_name here
-|
-+-- modules/             # reusable building blocks (no provider/backend config)
-|   +-- networking/       # VPC, VPC-native subnet (pods/services ranges), firewall rules
-|   +-- gke-cluster/      # GKE Standard cluster + managed node pool
-|   +-- iam/              # node SA + jerney-eso SA, IAM roles, Workload Identity binding
-|   +-- secret-manager/   # GCP Secret Manager secrets (map-driven)
-|   +-- argocd-bootstrap/ # ArgoCD + ESO (Helm), gcpsm ClusterSecretStore, root app-of-apps
-|
-+-- environments/        # one composition + state file per environment
-|   +-- dev/              # main.tf wires the modules; variables.tf/outputs.tf/versions.tf
-|   |   +-- versions.tf       # terraform block, providers, gcs backend (prefix: .../dev/state)
-|   |   +-- main.tf           # module composition + helm/kubectl provider config
-|   |   +-- variables.tf      # input variables (dev defaults: spot on, e2-medium)
-|   |   +-- outputs.tf        # cluster endpoint, kubectl command, service accounts
-|   |   +-- terraform.tfvars.example
-|   +-- staging/          # same shape; spot off, own state prefix
-|   +-- prod/             # same shape; on-demand e2-standard-2, deletion_protection on
-|
-+-- README.md            # this file
+├── bootstrap/            # run first -- creates the GCS bucket for remote state
+│   ├── main.tf
+│   └── terraform.tfvars
+├── networking.tf         # VPC, VPC-native subnet (pods/services ranges), firewall rules
+├── gke-cluster.tf        # GKE Standard cluster + managed node pool
+├── iam.tf                # node SA + jerney-eso SA, IAM roles, Workload Identity binding
+├── secrets.tf            # GCP Secret Manager secrets (map-driven)
+├── bootstrap.tf          # ArgoCD + ESO (Helm), gcpsm ClusterSecretStore, root app-of-apps
+├── variables.tf          # input variables (dev defaults: spot on, e2-medium)
+├── outputs.tf            # cluster endpoint, kubectl command, service accounts
+├── locals.tf             # secrets local map
+├── providers.tf          # provider configs
+├── versions.tf           # backend config
+├── dev.tfvars.example
+├── staging.tfvars.example
+├── prod.tfvars.example
+└── README.md             # this file
 
 k8s-gke/
-+-- apps/
-|   +-- root-app.yaml           # ArgoCD App-of-Apps (created by Terraform bootstrap)
-|   +-- ingress-nginx.yaml      # wave 0 -- nginx ingress controller (L4 LoadBalancer)
-|   +-- cert-manager.yaml       # wave 0 -- cert-manager (Let's Encrypt TLS)
-|   +-- platform-secrets.yaml   # wave 1 -- ExternalSecrets (store created by Terraform)
-|   +-- prometheus-stack.yaml   # wave 1 -- kube-prometheus-stack (multi-source)
-|   +-- jerney.yaml             # wave 1 -- app Helm chart (incl. nginx Ingress)
-|   +-- signoz.yaml             # wave 1 -- SigNoz tracing
-|   +-- loki-stack.yaml         # wave 2 -- Loki + Promtail
-|   +-- ingress-apps.yaml       # wave 2 -- ClusterIssuer + platform Ingresses
-+-- platform/
-    +-- external-secrets/
-    |   +-- external-secrets.yaml      # 3 ExternalSecrets (DB, Grafana, SMTP key)
-    |                                  # (ClusterSecretStore lives in the argocd-bootstrap module)
-    +-- prometheus-stack/
-    |   +-- values.yaml                # Grafana, Alertmanager, Prometheus config
-    +-- loki-stack/
-    |   +-- values.yaml
-    +-- ingress/
-        +-- cluster-issuer.yaml        # letsencrypt-prod ClusterIssuer (HTTP-01)
-        +-- ingresses.yaml             # argocd + grafana + signoz Ingresses
+├── apps/
+│   ├── base/
+│   │   ├── ingress-nginx.yaml      # wave 0 -- nginx ingress controller (L4 LoadBalancer)
+│   │   ├── cert-manager.yaml       # wave 0 -- cert-manager (Let's Encrypt TLS)
+│   │   ├── platform-secrets.yaml   # wave 1 -- ExternalSecrets (store created by Terraform)
+│   │   ├── prometheus-stack.yaml   # wave 1 -- kube-prometheus-stack (multi-source)
+│   │   ├── jerney.yaml             # wave 1 -- app Helm chart (incl. nginx Ingress)
+│   │   ├── signoz.yaml             # wave 1 -- SigNoz tracing
+│   │   ├── loki-stack.yaml         # wave 2 -- Loki + Promtail
+│   │   ├── ingress-apps.yaml       # wave 2 -- ClusterIssuer + platform Ingresses
+│   │   └── kustomization.yaml
+│   ├── dev/
+│   │   ├── kustomization.yaml
+│   │   └── jerney-patch.yaml
+│   ├── staging/
+│   │   ├── kustomization.yaml
+│   │   └── jerney-patch.yaml
+│   └── prod/
+│       ├── kustomization.yaml
+│       └── jerney-patch.yaml
+└── platform/
+    ├── external-secrets/
+    │   └── external-secrets.yaml      # 3 ExternalSecrets (DB, Grafana, SMTP key)
+    ├── prometheus-stack/
+    │   └── values.yaml                # Grafana, Alertmanager, Prometheus config
+    ├── loki-stack/
+    │   └── values.yaml
+    └── ingress/
+        ├── cluster-issuer.yaml        # letsencrypt-prod ClusterIssuer (HTTP-01)
+        └── ingresses.yaml             # argocd + grafana + signoz Ingresses
 ```
