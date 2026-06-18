@@ -10,7 +10,7 @@
 #   4. Root App-of-Apps   (ArgoCD then syncs everything else from Git)
 #
 # The root Application is rendered from gitops_* variables so each
-# environment can track its own branch/path without committing   a
+# environment can track its own branch/path without committing a
 # different YAML file per env.
 # ==============================================================
 
