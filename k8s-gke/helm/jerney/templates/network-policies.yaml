@@ -55,3 +55,36 @@ spec:
       ports:
         - port: 5000
           protocol: TCP
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Chart.Name }}-default-deny-ingress
+spec:
+  # Selects all pods in this namespace
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  # Empty ingress list means no incoming connections are allowed by default
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Chart.Name }}-frontend-allow-ingress
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Chart.Name }}-frontend
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow from the NGINX ingress controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - port: 8080
+          protocol: TCP

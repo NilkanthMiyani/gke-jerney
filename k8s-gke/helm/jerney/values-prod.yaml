@@ -1,0 +1,24 @@
+# ==============================================================
+# Jerney Helm Values — Prod Environment
+# ==============================================================
+
+image:
+  backend:
+    tag: 8175f40
+  frontend:
+    tag: 8175f40
+
+hpa:
+  frontend:
+    minReplicas: 3
+  backend:
+    minReplicas: 3
+
+postgresql:
+  primary:
+    persistence:
+      # Optional: In prod, you might want a faster disk
+      storageClass: "premium-rwo"
+
+ingress:
+  host: jerney.nilkanthprojects.site

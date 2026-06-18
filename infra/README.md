@@ -2,7 +2,7 @@
 
 This directory provisions a **GKE Standard cluster** on Google Cloud Platform to run the Jerney 3-tier blog application, using a **flat Terraform layout** (`infra/` without nested modules) and **Terraform Workspaces** for environment isolation. This mirrors the `jerney-aks` / `jerney-eks` siblings.
 
-Resource names below use the per-environment `<cluster>` prefix — `jerney-gke-dev`, `jerney-gke-stg`, or `jerney-gke-prod` — so the three environments can coexist in one project.
+Resource names below use the per-environment `<cluster>` prefix — `jerney-gke-dev`, `jerney-gke-stg`, or `jerney-gke-prod`. Best practice is to deploy each environment into a separate GCP project for complete isolation.
 
 ---
 
@@ -12,10 +12,11 @@ Resource names below use the per-environment `<cluster>` prefix — `jerney-gke-
 |---|---|---|
 | `<cluster>-vpc` | VPC Network | Isolated network for the cluster |
 | `<cluster>-subnet` | Subnetwork | Node subnet + secondary ranges for pods/services |
+| `<cluster>-router` & `nat` | Cloud Router/NAT | Outbound internet access for private nodes |
 | `<cluster>-allow-web` | Firewall Rule | Opens 80/443 to the internet |
 | `<cluster>-allow-health-checks` | Firewall Rule | GCP LB health check ranges (35.191.0.0/16, 130.211.0.0/22) |
 | `<cluster>-nodes` SA | Service Account | Least-privilege identity for node VMs |
-| `<cluster>` | GKE Standard Cluster | Single-zone managed Kubernetes (version pinned via `kubernetes_version`, default `1.35`) |
+| `<cluster>` | GKE Standard Cluster | Private Cluster (internal IPs only) — single-zone (version pinned via `kubernetes_version`, default `1.35`) |
 | `<cluster>-nodes` | Node Pool | Autoscaling node pool — sizing/machine type/Spot per environment (see Cost Strategy) |
 | `<cluster>-eso` SA | Service Account | External Secrets Operator — reads GCP Secret Manager (Workload Identity) |
 | `jerney-postgres-password` | Secret Manager Secret | PostgreSQL password (seeded by Terraform from tfvars) |
@@ -71,7 +72,7 @@ Internet
 |  |                                               |  |
 |  |  GKE Standard Cluster: <cluster> (K8s 1.35)   |  |
 |  |  +-------------------------------------------+   |
-|  |  |  Node Pool (autoscaling, per-env sizing)  |   |
+|  |  |  Private Node Pool (autoscaling)          |   |
 |  |  |                                           |   |
 |  |  |  Namespace: ingress-nginx                 |   |
 |  |  |    nginx controller (L4 LB) :80 :443      |   |
@@ -99,6 +100,8 @@ Internet
 |  |              GCP Secret Manager               |  |
 |  |              (jerney-eso SA)                  |  |
 |  +-----------------------------------------------+  |
+|          | (egress via Cloud NAT)                   |
+|  Cloud Router + Cloud NAT                           |
 +-----------------------------------------------------+
 ```
 

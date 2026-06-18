@@ -1,0 +1,23 @@
+# ==============================================================
+# Jerney Helm Values — Staging Environment
+# ==============================================================
+
+image:
+  backend:
+    tag: 8175f40
+  frontend:
+    tag: 8175f40
+
+hpa:
+  frontend:
+    minReplicas: 2
+  backend:
+    minReplicas: 2
+
+postgresql:
+  primary:
+    persistence:
+      storageClass: "standard-rwo"
+
+ingress:
+  host: staging.jerney.nilkanthprojects.site

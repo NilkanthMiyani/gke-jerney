@@ -1,42 +1,29 @@
 # ==============================================================
-# Jerney Helm Values — GKE
+# Jerney Helm Values — BASE (Shared Config)
 # ==============================================================
 
-hpa:
-  frontend:
-    minReplicas: 1
-    maxReplicas: 10
-    targetCPU: 50
-  backend:
-    minReplicas: 1
-    maxReplicas: 10
-    targetCPU: 50
 image:
   backend:
     repository: docker.io/nmiyani/jerney-backend
-    tag: 8175f40
   frontend:
     repository: docker.io/nmiyani/jerney-frontend
-    tag: 8175f40
+
 postgresql:
   enabled: true
   image:
-    tag: "latest"  # bitnami removed version tags from Docker Hub; only latest is publicly available
+    digest: "sha256:f60aa249d5be4ec1a9651ab05515f2eb9bb2b6eb664cd300abc19f13a208900d"
   auth:
     username: jerney_user
     database: jerney_db
-    existingSecret: jerney-db-credentials  # managed by ESO → GCP Secret Manager
+    existingSecret: jerney-db-credentials
     secretKeys:
       adminPasswordKey: password
       userPasswordKey: password
+  # ---- GKE Specific Additions ----
   primary:
     persistence:
       size: 10Gi
-      # GKE standard-rwo = Persistent Disk (ReadWriteOnce).
       storageClass: "standard-rwo"
-    # The Bitnami default `resourcesPreset: "nano"` caps CPU at 150m, which
-    # throttles the Postgres primary under load (CPUThrottlingHigh alert).
-    # Setting explicit resources overrides the preset.
     resourcesPreset: "none"
     resources:
       requests:
@@ -45,11 +32,7 @@ postgresql:
       limits:
         cpu: "2"
         memory: 1Gi
-otel:
-  endpoint: http://signoz-otel-collector.platform.svc.cluster.local:4317
-ingress:
-  # Hostname for the nginx Ingress; cert-manager issues a Let's Encrypt cert for it.
-  host: jerney.nilkanthprojects.site
+
 service:
   frontend:
     type: ClusterIP
@@ -66,3 +49,14 @@ service:
     port: 5432
     targetPort: 5432
 
+hpa:
+  frontend:
+    maxReplicas: 10
+    targetCPU: 50
+  backend:
+    maxReplicas: 10
+    targetCPU: 50
+
+# ---- Tracing ----
+otel:
+  endpoint: http://signoz-otel-collector.platform.svc.cluster.local:4317

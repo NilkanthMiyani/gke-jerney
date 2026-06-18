@@ -1,0 +1,31 @@
+{{- if gt (int .Values.hpa.frontend.minReplicas) 1 }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Chart.Name }}-frontend-pdb
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}-frontend
+    app.kubernetes.io/part-of: {{ .Chart.Name }}
+    app.kubernetes.io/component: frontend
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Chart.Name }}-frontend
+{{- end }}
+---
+{{- if gt (int .Values.hpa.backend.minReplicas) 1 }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Chart.Name }}-backend-pdb
+  labels:
+    app.kubernetes.io/name: {{ .Chart.Name }}-backend
+    app.kubernetes.io/part-of: {{ .Chart.Name }}
+    app.kubernetes.io/component: backend
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Chart.Name }}-backend
+{{- end }}

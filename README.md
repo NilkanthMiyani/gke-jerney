@@ -21,8 +21,8 @@ TLS issued by cert-manager.
 
 | Layer | Component | Notes |
 |---|---|---|
-| Infra | **Terraform** | GKE Standard cluster, VPC, firewall, IAM, Secret Manager |
-| GitOps | **ArgoCD** | App-of-Apps, auto-sync + self-heal, polls GitHub every ~3 min |
+| Infra | **Terraform** | Private GKE Standard cluster, VPC, Cloud NAT, firewall, IAM, Secret Manager |
+| GitOps | **ArgoCD** | App-of-Apps (with Kustomize env overlays), auto-sync + self-heal |
 | Ingress | **ingress-nginx** | Service type `LoadBalancer` → regional L4 network LB |
 | TLS | **cert-manager** | Let's Encrypt (HTTP-01) `letsencrypt-prod` ClusterIssuer |
 | Secrets | **External Secrets Operator** | Syncs GCP Secret Manager → K8s Secrets via Workload Identity |
@@ -42,8 +42,8 @@ TLS issued by cert-manager.
 │
 ├── infra/                       # flat Terraform structure (mirrors jerney-aks / jerney-eks)
 │   ├── bootstrap/               # run first — creates the GCS bucket for TF remote state
-│   ├── networking.tf            # VPC, VPC-native subnet, firewall rules
-│   ├── gke-cluster.tf           # GKE Standard cluster + node pool
+│   ├── networking.tf            # VPC, VPC-native subnet, Cloud Router + Cloud NAT, firewall rules
+│   ├── gke-cluster.tf           # Private GKE Standard cluster + node pool
 │   ├── iam.tf                   # node SA + ESO SA + Workload Identity binding
 │   ├── secrets.tf               # GCP Secret Manager secrets (map-driven)
 │   ├── bootstrap.tf             # ArgoCD + ESO + ClusterSecretStore + root app

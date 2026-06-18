@@ -6,3 +6,17 @@ resources:
 
 patches:
   - path: jerney-patch.yaml
+  - target:
+      kind: Application
+      name: jerney|platform-secrets|ingress-apps
+    patch: |-
+      - op: replace
+        path: /spec/source/targetRevision
+        value: staging
+  - target:
+      kind: Application
+      name: prometheus-stack|loki-stack
+    patch: |-
+      - op: replace
+        path: /spec/sources/1/targetRevision
+        value: staging

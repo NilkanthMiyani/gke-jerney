@@ -185,7 +185,7 @@ variable "gitops_target_revision" {
 variable "gitops_apps_path" {
   description = "Path to ArgoCD app manifests in the repo"
   type        = string
-  default     = "k8s-gke/apps"
+  default     = "k8s-gke/apps/dev"
   nullable    = false
 }
 
@@ -193,6 +193,13 @@ variable "argocd_chart_version" {
   description = "ArgoCD Helm chart version"
   type        = string
   default     = "9.5.20"
+  nullable    = false
+}
+
+variable "argocd_apps_chart_version" {
+  description = "ArgoCD Apps Helm chart version"
+  type        = string
+  default     = "2.0.2"
   nullable    = false
 }
 

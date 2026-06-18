@@ -1,0 +1,5 @@
+apiVersion: v2
+name: cluster-secret-store
+description: ClusterSecretStore for GCP Secret Manager (local chart)
+version: 0.1.0
+type: application

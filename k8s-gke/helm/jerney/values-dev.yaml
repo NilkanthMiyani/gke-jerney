@@ -1,0 +1,23 @@
+# ==============================================================
+# Jerney Helm Values — Dev Environment
+# ==============================================================
+
+image:
+  backend:
+    tag: 8175f40
+  frontend:
+    tag: 8175f40
+
+hpa:
+  frontend:
+    minReplicas: 1
+  backend:
+    minReplicas: 1
+
+postgresql:
+  primary:
+    persistence:
+      storageClass: "standard-rwo"
+
+ingress:
+  host: jerney.nilkanthprojects.site

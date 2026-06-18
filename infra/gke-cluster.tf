@@ -26,6 +26,13 @@ resource "google_container_cluster" "this" {
     services_secondary_range_name = var.services_range_name
   }
 
+  # Private cluster — nodes only have internal IPs.
+  private_cluster_config {
+    enable_private_nodes    = true
+    enable_private_endpoint = false
+    master_ipv4_cidr_block  = "172.16.0.0/28"
+  }
+
   # Workload Identity — lets k8s ServiceAccounts impersonate GCP service accounts.
   workload_identity_config {
     workload_pool = "${var.project_id}.svc.id.goog"

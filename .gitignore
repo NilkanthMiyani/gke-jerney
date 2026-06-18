@@ -25,3 +25,4 @@ override.tf.json
 
 # ---- Notes ----
 problem.txt
+docs/gke-reference.md

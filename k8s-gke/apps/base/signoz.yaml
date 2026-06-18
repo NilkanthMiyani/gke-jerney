@@ -13,7 +13,22 @@ spec:
     targetRevision: "0.127.1"
     helm:
       valuesObject:
+        clickhouse:
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 1
+              memory: 1Gi
         signoz:
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
           service:
             type: ClusterIP
           ingress:

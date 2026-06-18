@@ -60,17 +60,24 @@ resource "helm_release" "external_secrets" {
 }
 
 # ---- 3. ClusterSecretStore (GCP Secret Manager) ----
-resource "kubectl_manifest" "eso_cluster_secret_store" {
-  yaml_body = <<-YAML
-    apiVersion: external-secrets.io/v1beta1
-    kind: ClusterSecretStore
-    metadata:
-      name: ${var.secret_store_name}
-    spec:
-      provider:
-        gcpsm:
-          projectID: ${var.project_id}
-  YAML
+# Uses a local Helm chart instead of kubernetes_manifest because the Helm
+# provider does NOT validate CRDs at plan time — so this works on the very
+# first `terraform apply` against a brand-new cluster (the ESO CRDs are
+# installed by step 2 above, which runs before this thanks to depends_on).
+resource "helm_release" "eso_cluster_secret_store" {
+  name      = "eso-cluster-store"
+  chart     = "${path.module}/charts/cluster-secret-store"
+  namespace = var.eso_namespace
+
+  set {
+    name  = "projectID"
+    value = var.project_id
+  }
+
+  set {
+    name  = "storeName"
+    value = var.secret_store_name
+  }
 
   depends_on = [helm_release.external_secrets]
 }
@@ -80,7 +87,7 @@ resource "helm_release" "argocd_apps" {
   name             = "argocd-apps"
   repository       = "https://argoproj.github.io/argo-helm"
   chart            = "argocd-apps"
-  version          = "2.0.2" # argocd-apps chart version
+  version          = var.argocd_apps_chart_version
   namespace        = "argocd"
   create_namespace = false
 
