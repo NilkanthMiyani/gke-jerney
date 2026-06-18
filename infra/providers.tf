@@ -4,7 +4,7 @@ provider "google" {
   zone    = var.zone
 }
 
-
+# Retrieve an access token as the Terraform runner
 data "google_client_config" "default" {}
 
 provider "helm" {
