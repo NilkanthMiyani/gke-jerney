@@ -1,6 +1,6 @@
 # Jerney — GKE Infrastructure (Terraform)
 
-This directory provisions a **GKE Standard cluster** on Google Cloud Platform to run the Jerney 3-tier blog application, using a **flat Terraform layout** (`infra/` without nested modules) and **Terraform Workspaces** for environment isolation. This mirrors the `jerney-aks` / `jerney-eks` siblings.
+This directory provisions a **GKE Standard cluster** on Google Cloud Platform to run the Jerney 3-tier blog application.
 
 Resource names below use the per-environment `<cluster>` prefix — `jerney-gke-dev`, `jerney-gke-stg`, or `jerney-gke-prod`. Best practice is to deploy each environment into a separate GCP project for complete isolation.
 
@@ -61,48 +61,64 @@ Per-environment defaults (all overridable in `terraform.tfvars`):
 
 ## Project Architecture
 
+![Project Architecture](../docs/architecture.svg)
+
+---
+
+## File Structure
+
 ```
-Internet
-    |
-    v
-+-----------------------------------------------------+
-|  GCP (us-central1-a)                                |
-|                                                     |
-|  +--------------- <cluster>-vpc -----------------+  |
-|  |                                               |  |
-|  |  GKE Standard Cluster: <cluster> (K8s 1.35)   |  |
-|  |  +-------------------------------------------+   |
-|  |  |  Private Node Pool (autoscaling)          |   |
-|  |  |                                           |   |
-|  |  |  Namespace: ingress-nginx                 |   |
-|  |  |    nginx controller (L4 LB) :80 :443      |   |
-|  |  |  Namespace: cert-manager                  |   |
-|  |  |    Let's Encrypt TLS (HTTP-01)            |   |
-|  |  |         |                                 |   |
-|  |  |  Namespace: jerney                        |   |
-|  |  |    frontend (React)                       |   |
-|  |  |    backend  (Node.js + /metrics)          |   |
-|  |  |    postgresql (Bitnami chart)             |   |
-|  |  |                                           |   |
-|  |  |  Namespace: argocd                        |   |
-|  |  |    ArgoCD  -- watches k8s-gke/apps/       |   |
-|  |  |                                           |   |
-|  |  |  Namespace: monitoring                    |   |
-|  |  |    Prometheus  (scrapes /metrics, 15d)    |   |
-|  |  |    Alertmanager (email via Resend SMTP)   |   |
-|  |  |    Grafana     (dashboards + Loki)        |   |
-|  |  |    Loki + Promtail (log aggregation)      |   |
-|  |  |                                           |   |
-|  |  |  Namespace: external-secrets              |   |
-|  |  |    ESO  --[Workload Identity]-->          |   |
-|  |  +-------------------------------------------+   |
-|  |                        |                      |  |
-|  |              GCP Secret Manager               |  |
-|  |              (jerney-eso SA)                  |  |
-|  +-----------------------------------------------+  |
-|          | (egress via Cloud NAT)                   |
-|  Cloud Router + Cloud NAT                           |
-+-----------------------------------------------------+
+infra/
+├── bootstrap/            # run first -- creates the GCS bucket for remote state
+│   ├── main.tf
+│   └── terraform.tfvars
+├── charts/               # local Helm charts (cluster-secret-store)
+├── networking.tf         # VPC, VPC-native subnet (pods/services ranges), firewall rules
+├── gke-cluster.tf        # GKE Standard cluster + managed node pool
+├── iam.tf                # node SA + jerney-eso SA, IAM roles, Workload Identity binding
+├── secrets.tf            # GCP Secret Manager secrets (map-driven)
+├── bootstrap.tf          # ArgoCD + ESO (Helm), gcpsm ClusterSecretStore, root app-of-apps
+├── variables.tf          # input variables (dev defaults: spot on, e2-medium)
+├── outputs.tf            # cluster endpoint, kubectl command, service accounts
+├── locals.tf             # secrets local map
+├── providers.tf          # provider configs
+├── versions.tf           # backend config
+├── dev.tfvars.example
+├── staging.tfvars.example
+├── prod.tfvars.example
+└── README.md             # this file
+
+k8s-gke/
+├── apps/
+│   ├── base/
+│   │   ├── ingress-nginx.yaml      # wave 0 -- nginx ingress controller (L4 LoadBalancer)
+│   │   ├── cert-manager.yaml       # wave 0 -- cert-manager (Let's Encrypt TLS)
+│   │   ├── platform-secrets.yaml   # wave 1 -- ExternalSecrets (store created by Terraform)
+│   │   ├── prometheus-stack.yaml   # wave 1 -- kube-prometheus-stack (multi-source)
+│   │   ├── jerney.yaml             # wave 1 -- app Helm chart (incl. nginx Ingress)
+│   │   ├── signoz.yaml             # wave 1 -- SigNoz tracing
+│   │   ├── loki-stack.yaml         # wave 2 -- Loki + Promtail
+│   │   ├── ingress-apps.yaml       # wave 2 -- ClusterIssuer + platform Ingresses
+│   │   └── kustomization.yaml
+│   ├── dev/
+│   │   ├── kustomization.yaml
+│   │   └── jerney-patch.yaml
+│   ├── staging/
+│   │   ├── kustomization.yaml
+│   │   └── jerney-patch.yaml
+│   └── prod/
+│       ├── kustomization.yaml
+│       └── jerney-patch.yaml
+└── platform/
+    ├── external-secrets/
+    │   └── external-secrets.yaml      # 3 ExternalSecrets (DB, Grafana, SMTP key)
+    ├── prometheus-stack/
+    │   └── values.yaml                # Grafana, Alertmanager, Prometheus config
+    ├── loki-stack/
+    │   └── values.yaml
+    └── ingress/
+        ├── cluster-issuer.yaml        # letsencrypt-prod ClusterIssuer (HTTP-01)
+        └── ingresses.yaml             # argocd + grafana + signoz Ingresses
 ```
 
 ---
@@ -281,21 +297,6 @@ kubectl get certificate -A   # each should reach READY=True
 
 ---
 
-## Differences vs terraform-ec2
-
-| | terraform-ec2 | terraform-gke |
-|---|---|---|
-| Kubernetes | kubeadm (self-managed) | GKE Standard (managed control plane) |
-| Nodes | Single EC2 t3.large | Autoscaling node pool (dev: Spot e2-medium 1–3; prod: e2-standard-2 2–5) |
-| Control plane | Your responsibility | Google's responsibility |
-| Cluster upgrades | Manual kubeadm upgrade | GKE auto-upgrade |
-| Setup time | ~20 min (userdata.sh) | ~10 min (terraform apply) |
-| Node failure | Manual intervention | GKE auto-repair replaces node |
-| Secret management | Manual kubectl create secret | GCP Secret Manager + ESO |
-| Cost | ~$50-60/month (t3.large) | ~$15-25/month (spot e2-medium + mgmt fee) |
-
----
-
 ## Tear Down
 
 The nginx ingress controller is a Service of type LoadBalancer, so GKE creates a
@@ -308,68 +309,19 @@ ArgoCD (or `kubectl delete svc -n ingress-nginx`) so the LB is released cleanly:
 gcloud compute forwarding-rules list --filter="name:a"
 ```
 
-Then destroy Terraform-managed resources:
+Because we use a separately managed node pool (best practice), a race condition occurs during destroy where the nodes are deleted before Helm can cleanly uninstall the releases (like the ESO ClusterSecretStore). 
+
+To cleanly destroy the cluster, first tell Terraform to "forget" the Helm releases so it skips uninstalling them, then run destroy:
 
 ```bash
+terraform state rm helm_release.eso_cluster_secret_store
+terraform state rm helm_release.external_secrets
+terraform state rm helm_release.argocd
+terraform state rm helm_release.argocd_apps
+
 terraform destroy
 ```
 
 This deletes the cluster, VPC, firewall rules, service accounts, and Secret Manager secrets.
-**Warning:** All workloads and persistent volumes will be deleted.
+**Warning:** All workloads and persistent volumes will be deleted. Ensure you manually delete orphaned PVC disks (`gcloud compute disks list`) if the cluster was destroyed aggressively.
 
----
-
-## File Structure
-
-```
-infra/
-├── bootstrap/            # run first -- creates the GCS bucket for remote state
-│   ├── main.tf
-│   └── terraform.tfvars
-├── networking.tf         # VPC, VPC-native subnet (pods/services ranges), firewall rules
-├── gke-cluster.tf        # GKE Standard cluster + managed node pool
-├── iam.tf                # node SA + jerney-eso SA, IAM roles, Workload Identity binding
-├── secrets.tf            # GCP Secret Manager secrets (map-driven)
-├── bootstrap.tf          # ArgoCD + ESO (Helm), gcpsm ClusterSecretStore, root app-of-apps
-├── variables.tf          # input variables (dev defaults: spot on, e2-medium)
-├── outputs.tf            # cluster endpoint, kubectl command, service accounts
-├── locals.tf             # secrets local map
-├── providers.tf          # provider configs
-├── versions.tf           # backend config
-├── dev.tfvars.example
-├── staging.tfvars.example
-├── prod.tfvars.example
-└── README.md             # this file
-
-k8s-gke/
-├── apps/
-│   ├── base/
-│   │   ├── ingress-nginx.yaml      # wave 0 -- nginx ingress controller (L4 LoadBalancer)
-│   │   ├── cert-manager.yaml       # wave 0 -- cert-manager (Let's Encrypt TLS)
-│   │   ├── platform-secrets.yaml   # wave 1 -- ExternalSecrets (store created by Terraform)
-│   │   ├── prometheus-stack.yaml   # wave 1 -- kube-prometheus-stack (multi-source)
-│   │   ├── jerney.yaml             # wave 1 -- app Helm chart (incl. nginx Ingress)
-│   │   ├── signoz.yaml             # wave 1 -- SigNoz tracing
-│   │   ├── loki-stack.yaml         # wave 2 -- Loki + Promtail
-│   │   ├── ingress-apps.yaml       # wave 2 -- ClusterIssuer + platform Ingresses
-│   │   └── kustomization.yaml
-│   ├── dev/
-│   │   ├── kustomization.yaml
-│   │   └── jerney-patch.yaml
-│   ├── staging/
-│   │   ├── kustomization.yaml
-│   │   └── jerney-patch.yaml
-│   └── prod/
-│       ├── kustomization.yaml
-│       └── jerney-patch.yaml
-└── platform/
-    ├── external-secrets/
-    │   └── external-secrets.yaml      # 3 ExternalSecrets (DB, Grafana, SMTP key)
-    ├── prometheus-stack/
-    │   └── values.yaml                # Grafana, Alertmanager, Prometheus config
-    ├── loki-stack/
-    │   └── values.yaml
-    └── ingress/
-        ├── cluster-issuer.yaml        # letsencrypt-prod ClusterIssuer (HTTP-01)
-        └── ingresses.yaml             # argocd + grafana + signoz Ingresses
-```

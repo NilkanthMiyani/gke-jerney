@@ -42,6 +42,7 @@ TLS issued by cert-manager.
 │
 ├── infra/                       # flat Terraform structure (mirrors jerney-aks / jerney-eks)
 │   ├── bootstrap/               # run first — creates the GCS bucket for TF remote state
+│   ├── charts/                  # local Helm charts (e.g., cluster-secret-store)
 │   ├── networking.tf            # VPC, VPC-native subnet, Cloud Router + Cloud NAT, firewall rules
 │   ├── gke-cluster.tf           # Private GKE Standard cluster + node pool
 │   ├── iam.tf                   # node SA + ESO SA + Workload Identity binding

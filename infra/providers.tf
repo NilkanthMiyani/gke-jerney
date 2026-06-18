@@ -4,9 +4,6 @@ provider "google" {
   zone    = var.zone
 }
 
-# The cluster credentials might not be available during the first terraform plan,
-# but we configure them here anyway. Best practice is to use a separate apply phase
-# or retrieve the cluster token dynamically.
 
 data "google_client_config" "default" {}
 

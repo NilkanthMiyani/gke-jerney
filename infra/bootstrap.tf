@@ -10,7 +10,7 @@
 #   4. Root App-of-Apps   (ArgoCD then syncs everything else from Git)
 #
 # The root Application is rendered from gitops_* variables so each
-# environment can track its own branch/path without committing a
+# environment can track its own branch/path without committing   a
 # different YAML file per env.
 # ==============================================================
 
@@ -63,7 +63,7 @@ resource "helm_release" "external_secrets" {
 # Uses a local Helm chart instead of kubernetes_manifest because the Helm
 # provider does NOT validate CRDs at plan time — so this works on the very
 # first `terraform apply` against a brand-new cluster (the ESO CRDs are
-# installed by step 2 above, which runs before this thanks to depends_on).
+# installed by step 2 above, which runs before this with depends_on).
 resource "helm_release" "eso_cluster_secret_store" {
   name      = "eso-cluster-store"
   chart     = "${path.module}/charts/cluster-secret-store"
