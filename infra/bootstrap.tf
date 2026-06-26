@@ -27,16 +27,35 @@ resource "helm_release" "argocd" {
   wait             = true
   timeout          = 300
 
-  set {
-    # ArgoCD server runs without TLS — the nginx Ingress + cert-manager terminate TLS.
-    name  = "configs.params.server\\.insecure"
-    value = "true"
-  }
-
-  set {
-    name  = "configs.cm.application\\.instanceLabelKey"
-    value = "argocd.argoproj.io/instance"
-  }
+  values = [
+    yamlencode({
+      configs = {
+        params = {
+          "server.insecure" = true
+        }
+        cm = {
+          "application.instanceLabelKey" = "argocd.argoproj.io/instance"
+          "accounts.developer"           = "login"
+        }
+        rbac = {
+          "policy.csv" = <<-EOT
+            p, role:developer, applications, get, jerney-project/*, allow
+            p, role:developer, applications, sync, jerney-project/*, allow
+            p, role:developer, applications, update, jerney-project/*, allow
+            p, role:developer, applications, action/*, jerney-project/*, allow
+            p, role:developer, projects, get, jerney-project, allow
+            g, developer, role:developer
+          EOT
+        }
+        secret = {
+          extra = {
+            # Default password is 'developer123'
+            "accounts.developer.password" = "$2b$12$KU4sGQ1wbmnta9RysjLbSem70G8PPEvxFL5TgRB9vRimuZzA7fTn2"
+          }
+        }
+      }
+    })
+  ]
 }
 
 # ---- 2. External Secrets Operator ----

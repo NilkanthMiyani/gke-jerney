@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: jerney-project
+  namespace: argocd
+spec:
+  description: Project for Jerney application developers
+  # Allow deploying to these namespaces on the local cluster
+  destinations:
+    - namespace: jerney
+      server: https://kubernetes.default.svc
+    - namespace: jerney-dev
+      server: https://kubernetes.default.svc
+    - namespace: jerney-staging
+      server: https://kubernetes.default.svc
+  # Allow deploying from this specific Git repository
+  sourceRepos:
+    - https://github.com/NilkanthMiyani/gke-jerney.git
+  # Deny cluster-scoped resources from being created (least privilege)
+  clusterResourceWhitelist: []
+  clusterResourceBlacklist:
+    - group: '*'
+      kind: '*'
+  # Allow namespace-scoped resources
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'

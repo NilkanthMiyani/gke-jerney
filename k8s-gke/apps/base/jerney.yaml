@@ -6,7 +6,7 @@ metadata:
   annotations:
     argocd.argoproj.io/sync-wave: "1"
 spec:
-  project: default
+  project: jerney-project
   source:
     repoURL: https://github.com/NilkanthMiyani/gke-jerney.git
     targetRevision: main

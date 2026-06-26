@@ -3,6 +3,7 @@ kind: Kustomization
 
 resources:
   - platform-secrets.yaml
+  - jerney-project.yaml
   - prometheus-stack.yaml
   - jerney.yaml
   - loki-stack.yaml
