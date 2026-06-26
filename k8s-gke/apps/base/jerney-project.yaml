@@ -17,10 +17,9 @@ spec:
   sourceRepos:
     - https://github.com/NilkanthMiyani/gke-jerney.git
   # Deny cluster-scoped resources from being created (least privilege)
-  clusterResourceWhitelist: []
-  clusterResourceBlacklist:
-    - group: '*'
-      kind: '*'
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
   # Allow namespace-scoped resources
   namespaceResourceWhitelist:
     - group: '*'
